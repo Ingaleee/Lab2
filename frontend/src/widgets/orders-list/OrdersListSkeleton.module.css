@@ -1,0 +1,26 @@
+.container {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.description {
+  margin-bottom: var(--space-2);
+}
+
+.meta {
+  margin-top: var(--space-3);
+}

@@ -1,0 +1,26 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.message {
+  font-size: var(--font-md);
+  color: var(--text);
+}
+
+.button {
+  padding: 4px var(--space-2);
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: var(--font-sm);
+  align-self: flex-start;
+  transition: var(--transition);
+}
+
+.button:hover {
+  background: var(--accent-hover);
+}

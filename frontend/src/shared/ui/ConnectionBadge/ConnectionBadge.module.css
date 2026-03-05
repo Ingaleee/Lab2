@@ -1,0 +1,62 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius);
+  font-size: var(--font-xs);
+  font-weight: 500;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.connected {
+  background: var(--success-light);
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+
+.connecting,
+.reconnecting {
+  background: var(--warning-light);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+}
+
+.disconnected {
+  background: var(--neutral-light);
+  color: var(--neutral);
+  border: 1px solid var(--border);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.connected .dot {
+  background: var(--success);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.connecting .dot,
+.reconnecting .dot {
+  background: var(--warning);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.disconnected .dot {
+  background: var(--neutral);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}

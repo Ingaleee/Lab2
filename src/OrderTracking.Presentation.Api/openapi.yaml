@@ -1,0 +1,213 @@
+openapi: 3.0.3
+info:
+  title: Order Tracking API
+  description: API for tracking and managing orders with real-time status updates.
+  version: v1
+  contact:
+    name: Order Tracking Team
+
+tags:
+  - name: Orders
+    description: Operations for managing orders
+
+paths:
+  /api/orders:
+    post:
+      tags:
+        - Orders
+      operationId: createOrder
+      summary: Creates a new order
+      description: Creates a new order with the given order number and description.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+    get:
+      tags:
+        - Orders
+      operationId: getOrders
+      summary: Gets all orders
+      description: Returns a list of all orders in the system.
+      responses:
+        '200':
+          description: A list of orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderResponse'
+
+  /api/orders/{id}:
+    get:
+      tags:
+        - Orders
+      operationId: getOrderById
+      summary: Gets an order by ID
+      description: Returns a single order by its unique identifier.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the order
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The requested order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /api/orders/{id}/status:
+    patch:
+      tags:
+        - Orders
+      operationId: updateOrderStatus
+      summary: Updates the status of an order
+      description: >-
+        Changes the status of an existing order. 
+        Valid transitions depend on the current status.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the order
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrderStatusRequest'
+      responses:
+        '200':
+          description: Order status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Invalid status transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+components:
+  schemas:
+    CreateOrderRequest:
+      type: object
+      description: Request body for creating a new order.
+      required:
+        - orderNumber
+        - description
+      properties:
+        orderNumber:
+          type: string
+          description: The unique order number
+          example: "ORD-001"
+        description:
+          type: string
+          description: A description of the order
+          example: "Express delivery to Moscow"
+
+    UpdateOrderStatusRequest:
+      type: object
+      description: Request body for updating an order status.
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: The new status for the order
+          enum:
+            - New
+            - InProgress
+            - Delivered
+            - Cancelled
+          example: "InProgress"
+
+    OrderResponse:
+      type: object
+      description: Represents an order in the system.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The unique identifier of the order
+        orderNumber:
+          type: string
+          description: The order number
+        description:
+          type: string
+          description: The order description
+        status:
+          type: string
+          description: The current status of the order
+          enum:
+            - New
+            - InProgress
+            - Delivered
+            - Cancelled
+        createdAt:
+          type: string
+          format: date-time
+          description: The date and time when the order was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: The date and time when the order was last updated
+
+    ProblemDetails:
+      type: object
+      description: RFC 7807 problem details for HTTP APIs.
+      properties:
+        type:
+          type: string
+          description: A URI reference that identifies the problem type
+        title:
+          type: string
+          description: A short human-readable summary of the problem
+        status:
+          type: integer
+          format: int32
+          description: The HTTP status code
+        detail:
+          type: string
+          description: A human-readable explanation specific to this occurrence
+        instance:
+          type: string
+          description: A URI reference that identifies the specific occurrence

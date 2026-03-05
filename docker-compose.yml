@@ -1,0 +1,138 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: order-tracking-postgres
+    environment:
+      POSTGRES_DB: order_tracking
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:latest
+    container_name: order-tracking-redpanda
+    command:
+      - redpanda
+      - start
+      - --kafka-addr
+      - internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr
+      - internal://redpanda:9092,external://localhost:19092
+      - --pandaproxy-addr
+      - internal://0.0.0.0:8082,external://0.0.0.0:18082
+      - --advertise-pandaproxy-addr
+      - internal://redpanda:8082,external://localhost:18082
+      - --schema-registry-addr
+      - internal://0.0.0.0:8081,external://0.0.0.0:18081
+      - --rpc-addr
+      - redpanda:33145
+      - --advertise-rpc-addr
+      - redpanda:33145
+      - --smp
+      - "1"
+      - --memory
+      - "1G"
+      - --mode
+      - dev-container
+      - --default-log-level=info
+    ports:
+      - "19092:19092"
+      - "18081:18081"
+      - "18082:18082"
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    container_name: order-tracking-jaeger
+    ports:
+      - "16686:16686"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.104.0
+    container_name: order-tracking-otel-collector
+    command: ["--config=/etc/otelcol/config.yml"]
+    volumes:
+      - ./deploy/observability/otel-collector-config.yml:/etc/otelcol/config.yml
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    depends_on:
+      - jaeger
+
+  api:
+    build:
+      context: .
+      dockerfile: src/OrderTracking.Presentation.Api/Dockerfile
+    container_name: order-tracking-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__Postgres=Host=postgres;Port=5432;Database=order_tracking;Username=postgres;Password=postgres
+      - Kafka__BootstrapServers=redpanda:9092
+      - Kafka__ClientId=order-tracking-api
+      - Kafka__OrderStatusTopic=order.status.v1
+      - Kafka__ConsumerGroupId=order-tracking-api
+      - Kafka__EnableAutoCommit=false
+      - Kafka__AutoOffsetReset=Earliest
+      - OpenTelemetry__ServiceName=order-tracking-api
+      - OpenTelemetry__Otlp__Endpoint=http://otel-collector:4317
+      - OpenTelemetry__Exporters__Otlp=true
+      - OpenTelemetry__Exporters__Console=false
+    ports:
+      - "5086:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    build:
+      context: .
+      dockerfile: src/OrderTracking.Presentation.Worker/Dockerfile
+    container_name: order-tracking-worker
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__Postgres=Host=postgres;Port=5432;Database=order_tracking;Username=postgres;Password=postgres
+      - Kafka__BootstrapServers=redpanda:9092
+      - Kafka__ClientId=order-tracking-worker
+      - Kafka__OrderStatusTopic=order.status.v1
+      - OutboxDispatcher__BatchSize=50
+      - OutboxDispatcher__PollIntervalSeconds=2
+      - OutboxDispatcher__MaxAttempts=10
+      - OpenTelemetry__ServiceName=order-tracking-worker
+      - OpenTelemetry__Otlp__Endpoint=http://otel-collector:4317
+      - OpenTelemetry__Exporters__Otlp=true
+      - OpenTelemetry__Exporters__Console=false
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+
+volumes:
+  postgres_data:

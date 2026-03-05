@@ -1,0 +1,137 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.header {
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-5);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.headerTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  min-width: 0;
+  position: relative;
+}
+
+.headerBottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.closeButton {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius);
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.closeButton svg {
+  flex-shrink: 0;
+}
+
+.closeButton:hover {
+  background: var(--border);
+  color: var(--text);
+  transform: scale(1.05);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-2xl);
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+  flex: 1;
+  min-width: 0;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  gap: var(--space-4);
+  padding-right: var(--space-2);
+}
+
+.details {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.detailRow {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.detailLabel {
+  font-size: var(--font-sm);
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.detailValue {
+  font-size: var(--font-md);
+  color: var(--text);
+  word-break: break-word;
+}
+
+.pulse {
+  color: var(--success);
+  animation: pulse 2s ease-in-out infinite;
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--space-1);
+}
+
+.pulse svg {
+  flex-shrink: 0;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.loading,
+.error {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.error {
+  color: var(--error);
+}

@@ -1,0 +1,100 @@
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  flex: 1;
+}
+
+.stepCircle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  background: var(--neutral-light);
+  color: var(--neutral);
+  border: 2px solid var(--border);
+  transition: var(--transition);
+}
+
+.stepCircle svg {
+  flex-shrink: 0;
+}
+
+.stepCircle.active {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.stepCircle.current {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-light);
+}
+
+.stepCircle.cancelled {
+  background: var(--error-light);
+  color: var(--error);
+  border-color: var(--error);
+}
+
+.stepLabel {
+  margin-top: var(--space-2);
+  font-size: var(--font-sm);
+  font-weight: 500;
+  color: var(--text-muted);
+  transition: var(--transition);
+}
+
+.stepLabel.active {
+  color: var(--text-secondary);
+}
+
+.stepLabel.current {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.stepLabel.cancelled {
+  color: var(--error);
+}
+
+.stepLine {
+  position: absolute;
+  top: 16px;
+  left: calc(50% + 16px);
+  right: calc(-50% + 16px);
+  height: 2px;
+  background: var(--border);
+  z-index: -1;
+  transition: var(--transition);
+}
+
+.stepLine.active {
+  background: var(--accent);
+}
+
+.cancelledStep {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-left: var(--space-4);
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--border);
+}

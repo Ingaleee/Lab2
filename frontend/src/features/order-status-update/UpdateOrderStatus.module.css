@@ -1,0 +1,31 @@
+.form {
+  display: flex;
+  align-items: center;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.label {
+  display: none;
+}
+
+.controls {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.select {
+  min-width: 130px;
+  height: 36px;
+}
+
+.submitButton {
+  white-space: nowrap;
+  height: 36px;
+  padding: var(--space-2) var(--space-4);
+}

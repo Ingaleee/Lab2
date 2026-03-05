@@ -1,0 +1,12 @@
+{
+  "name": "signalr-client",
+  "version": "1.0.0",
+  "description": "Simple SignalR client for testing order status updates",
+  "main": "signalr-client.js",
+  "scripts": {
+    "start": "node signalr-client.js"
+  },
+  "dependencies": {
+    "@microsoft/signalr": "^8.0.0"
+  }
+}
