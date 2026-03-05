@@ -2,6 +2,14 @@
 
 Система отслеживания заказов с real-time обновлениями через WebSocket.
 
+## Подход к документации API (design-first)
+
+Здесь реализовано так: [openapi.yaml](src/OrderTracking.Presentation.Api/openapi.yaml) → NSwag → [OrdersControllerBase.g.cs](src/OrderTracking.Presentation.Api/Generated/OrdersControllerBase.g.cs) → [OrdersController](src/OrderTracking.Presentation.Api/Controllers/OrdersController.cs) наследует и дополняет логикой.
+
+![Документация Order Tracking API (OpenAPI / Swagger)](openapi-docs.png)
+
+![Jaeger UI — трейсы order-tracking-api](jaeger-ui.png)
+
 ## Технологии
 
 - .NET 9.0, ASP.NET Core, EF Core
