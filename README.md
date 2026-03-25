@@ -1,61 +1,86 @@
 # Order Tracking
 
-Система отслеживания заказов с real-time обновлениями через WebSocket.
+Я делаю систему отслеживания заказов с обновлениями в реальном времени через WebSocket (SignalR).
 
-## Подход к документации API (design-first)
+## Как я описываю API (design-first)
 
-Здесь реализовано так: [openapi.yaml](src/OrderTracking.Presentation.Api/openapi.yaml) → NSwag → [OrdersControllerBase.g.cs](src/OrderTracking.Presentation.Api/Generated/OrdersControllerBase.g.cs) → [OrdersController](src/OrderTracking.Presentation.Api/Controllers/OrdersController.cs) наследует и дополняет логикой.
+Я завёл контракт в [openapi.yaml](src/OrderTracking.Presentation.Api/openapi.yaml), из него NSwag генерирует [OrdersControllerBase.g.cs](src/OrderTracking.Presentation.Api/Generated/OrdersControllerBase.g.cs), а я наследуюсь от него в [OrdersController](src/OrderTracking.Presentation.Api/Controllers/OrdersController.cs) и дописываю бизнес-логику.
 
-![Документация Order Tracking API (OpenAPI / Swagger)](openapi-docs.png)
+![Мой скрин Swagger UI по OpenAPI](docs/openapi-docs.png)
 
-![Jaeger UI — трейсы order-tracking-api](jaeger-ui.png)
+![Мой скрин Jaeger: трейсы order-tracking-api](docs/jaeger-ui.png)
 
-## Технологии
+## Что я использую
 
 - .NET 9.0, ASP.NET Core, EF Core
 - PostgreSQL
-- Kafka (Redpanda)
+- Kafka (у меня в compose — Redpanda)
 - SignalR
 
-## Архитектура
+## Как я разложил архитектуру
 
-Clean Architecture с разделением на слои:
-- **Domain** - доменная модель без зависимостей
-- **Contracts** - DTO и интеграционные события
-- **Application** - абстракции для бизнес-логики
-- **Infrastructure** - EF Core, Kafka, Outbox pattern
-- **Presentation.Api** - REST API + SignalR Hub
-- **Presentation.Worker** - фоновый сервис для публикации событий
+Я выстроил решение в духе Clean Architecture:
+- **Domain** — доменная модель, без внешних зависимостей
+- **Contracts** — DTO и интеграционные события
+- **Application** — абстракции под бизнес-логику
+- **Infrastructure** — EF Core, Kafka, у меня ещё outbox
+- **Presentation.Api** — REST и SignalR Hub
+- **Presentation.Worker** — фоновый сервис, который публикует события из outbox
 
-## Запуск
+## Как я запускаю проект
 
-### Docker Compose (рекомендуется)
+### Через Docker Compose (так удобнее всего)
 
 ```bash
 docker compose up -d
 ```
 
-После запуска:
-- API: http://localhost:5086/swagger
+После `up` у меня открываются, в частности:
+- API (health): http://localhost:5086/health
+- OpenAPI (сырой YAML): http://localhost:5086/api-docs/openapi.yaml
+- Swagger UI (если окружение `Development`): http://localhost:5086/swagger
+- Frontend из compose: http://localhost:5173
 - Jaeger UI: http://localhost:16686
-- PostgreSQL: localhost:5432
-- Kafka: localhost:19092
+- Grafana: http://localhost:13001 (я захожу как `admin` / `admin`)
+- Prometheus: http://localhost:9090
+- Loki с хоста: http://localhost:13100
+- OpenSearch API: http://localhost:9200
+- OpenSearch Dashboards: http://localhost:5601
+- VictoriaLogs: http://localhost:9428
+- OTLP (gRPC к collector): localhost:4317
+- PostgreSQL с моего ПК: **localhost:15432** (внутри Docker-сети контейнеры ходят на `postgres:5432`)
+- Kafka (Redpanda) с хоста: **localhost:19092**
 
-### Локально
+### Локально (без полного compose)
 
-Требуется PostgreSQL и Kafka/Redpanda.
+Мне всё равно нужны зависимости: проще всего поднять их так:  
+`docker compose up -d postgres redpanda jaeger otel-collector`  
+или использовать свои инстансы. В [appsettings.json](src/OrderTracking.Presentation.Api/appsettings.json) я оставил настройки под подключение **с хоста** к тому, что в compose: Postgres **localhost:15432**, Kafka **localhost:19092**, OTLP **http://localhost:4317**.
 
 ```bash
 # API
 cd src/OrderTracking.Presentation.Api
 dotnet run
 
-# Worker (в отдельном терминале)
+# Worker — в другом терминале
 cd src/OrderTracking.Presentation.Worker
 dotnet run
 ```
 
-## Проверка работы
+## Как я проверяю, что всё живое
+
+### Нагрузка под метрики и логи в Grafana
+
+Если API уже запущен (`docker compose` или `dotnet run`), я гоняю сценарий:
+
+```powershell
+.\tools\demo-metrics-traffic.ps1
+# иногда так: .\tools\demo-metrics-traffic.ps1 -BaseUrl "http://localhost:5086" -Rounds 5 -SleepSec 4
+```
+
+Скрипт создаёт заказы, дергает список и карточки и меняет статусы с паузами, чтобы у меня в Prometheus/Loki что-то появилось.
+
+В **Docker Compose** на сервисе **api** я по умолчанию включил похожий сценарий через **`DemoTraffic__*`** (см. `docker-compose.yml`): через примерно 1–2 минуты после `up` метрики начинают наполняться сами. Чтобы отключить: убираю `DemoTraffic__Enabled=true` или ставлю `DemoTraffic__Enabled=false`.
 
 ### 1. Создать заказ
 
@@ -65,9 +90,9 @@ curl -X POST http://localhost:5086/api/orders \
   -d '{"orderNumber":"ORD-001","description":"Test order"}'
 ```
 
-Сохраните `id` из ответа.
+Я сохраняю `id` из ответа.
 
-### 2. Изменить статус
+### 2. Поменять статус
 
 ```bash
 curl -X PATCH http://localhost:5086/api/orders/{ORDER_ID}/status \
@@ -75,9 +100,9 @@ curl -X PATCH http://localhost:5086/api/orders/{ORDER_ID}/status \
   -d '{"status":"InProgress"}'
 ```
 
-### 3. Проверить цепочку событий
+### 3. Я смотрю цепочку событий
 
-**Outbox (БД):**
+**Outbox в БД:**
 ```bash
 docker compose exec postgres psql -U postgres -d order_tracking \
   -c "SELECT id, type, status FROM outbox_messages ORDER BY occurred_at DESC LIMIT 5;"
@@ -88,20 +113,20 @@ docker compose exec postgres psql -U postgres -d order_tracking \
 docker compose logs worker | grep "Kafka published"
 ```
 
-**Логи API (обработка события и broadcast):**
+**Логи API (обработка и broadcast):**
 ```bash
 docker compose logs api | grep "Broadcasted status update"
 ```
 
-**ProcessedEvents (idempotency):**
+**ProcessedEvents (идемпотентность):**
 ```bash
 docker compose exec postgres psql -U postgres -d order_tracking \
   -c "SELECT event_id, processed_at FROM processed_events ORDER BY processed_at DESC LIMIT 5;"
 ```
 
-### 4. Проверить SignalR
+### 4. SignalR
 
-Установите зависимости и запустите тестовый клиент:
+Я ставлю зависимости и гоняю тестовый клиент:
 
 ```bash
 cd tools
@@ -109,48 +134,50 @@ npm install
 node signalr-client.js
 ```
 
-Измените статус заказа через API - в консоли увидите событие.
+Если потом меняю статус через API, в консоли клиента я вижу событие.
 
-## API
+## Мои эндпоинты API
 
-- `POST /api/orders` - создать заказ
-- `GET /api/orders` - список заказов
-- `GET /api/orders/{id}` - заказ по ID
-- `PATCH /api/orders/{id}/status` - изменить статус
+- `POST /api/orders` — создать заказ
+- `GET /api/orders` — список
+- `GET /api/orders/{id}` — карточка
+- `PATCH /api/orders/{id}/status` — смена статуса
 
-## SignalR
+## Как я использую SignalR
 
 **Hub:** `/hubs/orders`
 
-**Методы:**
-- `JoinOrdersList()` - подписка на все заказы
-- `JoinOrder(orderId)` - подписка на конкретный заказ
+**Методы (я их вызываю с клиента):**
+- `JoinOrdersList()` — подписка на все заказы
+- `JoinOrder(orderId)` — подписка на один заказ
 
-**События:**
-- `orderStatusChanged` - изменение статуса
+**События (я на них подписываюсь):**
+- `orderStatusChanged` — статус изменился
 
-## Статусы
+## Как я задал переходы статусов
 
-- `New` → `InProgress` | `Cancelled`
-- `InProgress` → `Delivered` | `Cancelled`
-- `Delivered`, `Cancelled` - финальные
+- `New` → `InProgress` или `Cancelled`
+- `InProgress` → `Delivered` или `Cancelled`
+- `Delivered`, `Cancelled` — финальные, дальше я их не трогаю
 
-## Observability 
+## Наблюдаемость (как я это подключил)
 
-Система использует OpenTelemetry для distributed tracing.
+Я использую **OpenTelemetry** для распределённой трассировки и метрик.
 
-### Просмотр трейсов
+### Где я смотрю трейсы и дашборды
 
-1. Откройте Jaeger UI: http://localhost:16686
-2. Выберите сервис `order-tracking-api` или `order-tracking-worker`
-3. Нажмите "Find Traces"
+1. **Трейсы** — Jaeger: http://localhost:16686 — выбираю сервис `order-tracking-api` или `order-tracking-worker`, жму «Find Traces».
+2. **Метрики и дашборды** — Grafana: http://localhost:13001 (у меня Prometheus, Loki и OpenSearch подключаются через provisioning). VictoriaLogs отдельно: http://localhost:9428.
+3. **Сырые метрики** — Prometheus: http://localhost:9090 — у меня он скрейпит **`/metrics`** у **api:8080** и **worker:9464**.
 
-### Что трейсится
+Текстовое описание моего дашборда Grafana и скрины для отчёта я вынес в [docs/grafana-dashboard.md](docs/grafana-dashboard.md).
 
-- HTTP запросы (ASP.NET Core)
-- EF Core запросы к БД
-- Кастомные спаны:
-  - `Outbox.Dispatch` - обработка outbox сообщений в Worker
-  - `Kafka.Produce` - публикация событий в Kafka
-  - `Kafka.Consume` - потребление событий из Kafka в API
-  - `SignalR.Broadcast` - broadcast событий через SignalR
+### Что именно я трейсю
+
+- HTTP (ASP.NET Core)
+- запросы EF Core к БД
+- свои спаны:
+  - `Outbox.Dispatch` — worker разбирает outbox
+  - `Kafka.Produce` — публикация в Kafka
+  - `Kafka.Consume` — потребление в API
+  - `SignalR.Broadcast` — раздача события клиентам
