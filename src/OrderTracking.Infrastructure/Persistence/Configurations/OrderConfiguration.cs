@@ -20,7 +20,7 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasKey(x => x.Id);
         
         builder.Property(x => x.Id)
-            .HasColumnName("id");
+            .HasColumnName("Id");
 
         builder.Property(x => x.OrderNumber)
             .HasColumnName("order_number")

@@ -1,11 +1,15 @@
 using System;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using OrderTracking.Infrastructure.Persistence;
 
 #nullable disable
 
 namespace OrderTracking.Infrastructure.Persistence.Migrations
 {
     /// <inheritdoc />
+    [DbContext(typeof(AppDbContext))]
+    [Migration("20260120185428_AddOutboxMessages")]
     public partial class AddOutboxMessages : Migration
     {
         /// <inheritdoc />
