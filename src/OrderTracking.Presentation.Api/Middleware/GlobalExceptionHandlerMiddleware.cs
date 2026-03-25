@@ -62,7 +62,7 @@ public sealed class GlobalExceptionHandlerMiddleware
             title,
             status = statusCode,
             detail,
-            instance = context.Request.Path
+            instance = context.Request.Path.ToString()
         };
 
         var json = JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions
