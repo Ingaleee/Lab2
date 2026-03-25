@@ -1,4 +1,4 @@
-import { SelectHTMLAttributes, ReactNode } from "react";
+import type { SelectHTMLAttributes, ReactNode } from "react";
 import s from "./Select.module.css";
 
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {

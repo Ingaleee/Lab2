@@ -13,7 +13,7 @@ export function OrderCard({
   highlight?: boolean;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [, setSearchParams] = useSearchParams();
 
   useEffect(() => {
     if (highlight && cardRef.current) {

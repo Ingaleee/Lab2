@@ -1,4 +1,3 @@
-import React from "react";
 import toast from "react-hot-toast";
 import { Package } from "lucide-react";
 import type { OrderStatusChangedIntegrationEventV1 } from "../../../entities/order/model/types";
@@ -48,7 +47,7 @@ export function showSmartToast(evt: OrderStatusChangedIntegrationEventV1) {
           const orderIdShort = single.orderId.slice(0, 8);
           
           toast.custom(
-            (t) => (
+            () => (
               <ToastContent
                 message={`Order #${orderIdShort} moved to ${single.newStatus}`}
                 orderId={single.orderId}
@@ -62,7 +61,7 @@ export function showSmartToast(evt: OrderStatusChangedIntegrationEventV1) {
         } else {
           const latest = toastQueue[toastQueue.length - 1];
           toast.custom(
-            (t) => (
+            () => (
               <ToastContent
                 message={`${toastQueue.length} updates received`}
                 orderId={latest.orderId}
