@@ -161,12 +161,15 @@ public sealed class OutboxDispatcherHostedService : BackgroundService
                     cancellationToken: ct);
 
                 msg.MarkProcessed(DateTimeOffset.UtcNow);
+                Telemetry.RecordOutboxMessagePublished();
             }
             catch (Exception ex)
             {
                 dispatchActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
                 dispatchActivity?.SetTag("error", true);
                 dispatchActivity?.SetTag("error.message", ex.Message);
+
+                Telemetry.RecordOutboxPublishFailure();
 
                 var error = ex.Message;
                 _logger.LogWarning(ex, "Failed to publish outbox message. Id={Id}, Attempts={Attempts}",
@@ -175,6 +178,7 @@ public sealed class OutboxDispatcherHostedService : BackgroundService
                 if (msg.Attempts + 1 >= _options.MaxAttempts)
                 {
                     msg.MarkPoisoned(error);
+                    Telemetry.RecordOutboxMessagePoisoned();
                     _logger.LogError("Outbox message poisoned. Id={Id}", msg.Id);
                 }
                 else

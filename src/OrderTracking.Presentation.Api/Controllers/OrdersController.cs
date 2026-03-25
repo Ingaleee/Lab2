@@ -6,6 +6,7 @@ using OrderTracking.Application.Common.Errors;
 using OrderTracking.Contracts.IntegrationEvents;
 using OrderTracking.Contracts.Orders;
 using OrderTracking.Domain.Orders;
+using OrderTracking.Infrastructure.Observability;
 using OrderTracking.Presentation.Api.Generated;
 
 namespace OrderTracking.Presentation.Api.Controllers;
@@ -52,6 +53,8 @@ public sealed class OrdersController : OrdersControllerBase
         await _orderRepository.AddAsync(orderResult.Value, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        Telemetry.RecordOrderCreated();
+
         var response = MapToResponse(orderResult.Value);
         return CreatedAtAction(nameof(GetOrderById), new { id = response.Id }, response);
     }
@@ -62,6 +65,7 @@ public sealed class OrdersController : OrdersControllerBase
     {
         var orders = await _orderRepository.GetAllAsync(cancellationToken);
         var response = orders.Select(MapToResponse).ToList();
+        Telemetry.RecordOrderCatalogListRequest();
         return Ok(response);
     }
 
@@ -76,6 +80,7 @@ public sealed class OrdersController : OrdersControllerBase
             throw new NotFoundException($"Order with ID '{id}' not found.");
         }
 
+        Telemetry.RecordOrderCatalogDetailView();
         return Ok(MapToResponse(order));
     }
 
@@ -115,6 +120,17 @@ public sealed class OrdersController : OrdersControllerBase
 
         await _outboxStore.EnqueueAsync(integrationEvent, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        Telemetry.RecordOrderStatusTransition(oldStatus.ToString(), newStatus.ToString());
+
+        if (newStatus == OrderStatus.Delivered)
+        {
+            Telemetry.RecordOrderCompleted();
+        }
+        else if (newStatus == OrderStatus.Cancelled)
+        {
+            Telemetry.RecordOrderCancelled();
+        }
 
         return Ok(MapToResponse(order));
     }

@@ -1,11 +1,14 @@
 using Microsoft.EntityFrameworkCore;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using OpenTelemetry.Exporter.Prometheus;
 using OrderTracking.Infrastructure.DI;
 using OrderTracking.Infrastructure.Messaging.Kafka;
 using OrderTracking.Infrastructure.Observability;
 using OrderTracking.Infrastructure.Persistence;
+using OrderTracking.Presentation.Api.DemoTraffic;
 using OrderTracking.Presentation.Api.Messaging;
 using OrderTracking.Presentation.Api.Middleware;
 using OrderTracking.Presentation.Api.Realtime;
@@ -25,6 +28,8 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
 
 var otelSection = builder.Configuration.GetSection("OpenTelemetry");
@@ -34,6 +39,21 @@ var enableOtlp = otelSection.GetSection("Exporters").GetValue<bool>("Otlp", true
 var enableConsole = otelSection.GetSection("Exporters").GetValue<bool>("Console", false);
 
 var serviceVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
+
+builder.Logging.AddOpenTelemetry(logging =>
+{
+    logging.IncludeFormattedMessage = true;
+    logging.IncludeScopes = true;
+    logging.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(
+        serviceName: serviceName,
+        serviceVersion: serviceVersion,
+        serviceInstanceId: Environment.MachineName,
+        serviceNamespace: Telemetry.ServiceNamespace));
+    if (enableOtlp)
+    {
+        logging.AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint));
+    }
+});
 
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService(
@@ -75,16 +95,27 @@ builder.Services.AddOpenTelemetry()
             .AddHttpClientInstrumentation()
             .AddRuntimeInstrumentation();
 
+        metrics.AddPrometheusExporter();
+
         if (enableOtlp)
         {
-            metrics.AddOtlpExporter(o =>
+            metrics.AddOtlpExporter((o, reader) =>
             {
                 o.Endpoint = new Uri(otlpEndpoint);
+                reader.PeriodicExportingMetricReaderOptions.ExportIntervalMilliseconds = 10000;
             });
         }
     });
 
 builder.Services.AddInfrastructure(builder.Configuration);
+
+builder.Services.AddSingleton<OrderBookMetricsSnapshot>(_ =>
+{
+    var snapshot = new OrderBookMetricsSnapshot();
+    OrderBookGaugeRegistration.Register(snapshot);
+    return snapshot;
+});
+builder.Services.AddHostedService<OrderBookMetricsReporterHostedService>();
 
 builder.Services.AddSignalR(options =>
 {
@@ -95,7 +126,14 @@ builder.Services.Configure<KafkaOptions>(builder.Configuration.GetSection(KafkaO
 
 builder.Services.AddHostedService<OrderStatusKafkaConsumerHostedService>();
 
+if (builder.Configuration.GetValue("DemoTraffic:Enabled", false))
+{
+    builder.Services.AddHostedService<DemoTrafficHostedService>();
+}
+
 var app = builder.Build();
+
+app.UseOpenTelemetryPrometheusScrapingEndpoint();
 
 using (var scope = app.Services.CreateScope())
 {

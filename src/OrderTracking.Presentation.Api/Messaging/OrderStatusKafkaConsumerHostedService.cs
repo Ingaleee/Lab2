@@ -100,6 +100,7 @@ public sealed class OrderStatusKafkaConsumerHostedService : BackgroundService
 
                 if (await IsAlreadyProcessed(evt.EventId, stoppingToken))
                 {
+                    Telemetry.RecordKafkaStatusEventSkippedIdempotent();
                     _logger.LogInformation("Event already processed. EventId={EventId}", evt.EventId);
                     consumer.Commit(cr);
                     continue;
@@ -116,6 +117,8 @@ public sealed class OrderStatusKafkaConsumerHostedService : BackgroundService
                 await Broadcast(evt, stoppingToken);
 
                 await MarkProcessed(evt.EventId, stoppingToken);
+
+                Telemetry.RecordKafkaStatusEventConsumed();
 
                 consumer.Commit(cr);
             }

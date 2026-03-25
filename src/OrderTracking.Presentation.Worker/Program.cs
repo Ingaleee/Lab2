@@ -1,13 +1,22 @@
 using Microsoft.Extensions.Hosting;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using OpenTelemetry.Exporter.Prometheus;
+using Microsoft.AspNetCore.Builder;
 using OrderTracking.Infrastructure.DI;
 using OrderTracking.Infrastructure.Observability;
 using OrderTracking.Presentation.Worker.Outbox;
 using System.Reflection;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+builder.WebHost.UseUrls("http://0.0.0.0:9464");
+builder.WebHost.Configure(app =>
+{
+    app.UseOpenTelemetryPrometheusScrapingEndpoint();
+});
 
 var otelSection = builder.Configuration.GetSection("OpenTelemetry");
 var serviceName = otelSection["ServiceName"] ?? "order-tracking-worker";
@@ -16,6 +25,21 @@ var enableOtlp = otelSection.GetSection("Exporters").GetValue<bool>("Otlp", true
 var enableConsole = otelSection.GetSection("Exporters").GetValue<bool>("Console", false);
 
 var serviceVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
+
+builder.Logging.AddOpenTelemetry(logging =>
+{
+    logging.IncludeFormattedMessage = true;
+    logging.IncludeScopes = true;
+    logging.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(
+        serviceName: serviceName,
+        serviceVersion: serviceVersion,
+        serviceInstanceId: Environment.MachineName,
+        serviceNamespace: Telemetry.ServiceNamespace));
+    if (enableOtlp)
+    {
+        logging.AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint));
+    }
+});
 
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService(
@@ -49,9 +73,15 @@ builder.Services.AddOpenTelemetry()
             .AddHttpClientInstrumentation()
             .AddRuntimeInstrumentation();
 
+        metrics.AddPrometheusExporter();
+
         if (enableOtlp)
         {
-            metrics.AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint));
+            metrics.AddOtlpExporter((o, reader) =>
+            {
+                o.Endpoint = new Uri(otlpEndpoint);
+                reader.PeriodicExportingMetricReaderOptions.ExportIntervalMilliseconds = 10000;
+            });
         }
     });
 
