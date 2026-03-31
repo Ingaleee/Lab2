@@ -13,10 +13,10 @@ COPY ["src/OrderTracking.Contracts/OrderTracking.Contracts.csproj", "src/OrderTr
 RUN dotnet restore "src/OrderTracking.Presentation.Api/OrderTracking.Presentation.Api.csproj"
 COPY . .
 WORKDIR "/src/src/OrderTracking.Presentation.Api"
-RUN dotnet build "OrderTracking.Presentation.Api.csproj" -c Release -o /app/build
+RUN dotnet build "OrderTracking.Presentation.Api.csproj" -c Release -o /app/build /p:SkipNSwag=true
 
 FROM build AS publish
-RUN dotnet publish "OrderTracking.Presentation.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "OrderTracking.Presentation.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false /p:SkipNSwag=true
 
 FROM base AS final
 WORKDIR /app

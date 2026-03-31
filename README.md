@@ -71,16 +71,9 @@ dotnet run
 
 ### Нагрузка под метрики и логи в Grafana
 
-Если API уже запущен (`docker compose` или `dotnet run`), я гоняю сценарий:
+В **Docker Compose** на сервисе **api** я по умолчанию включил сценарий **`DemoTraffic__*`** (см. `docker-compose.yml`): через примерно 1–2 минуты после `up` метрики начинают наполняться сами. Чтобы отключить: убираю `DemoTraffic__Enabled=true` или ставлю `DemoTraffic__Enabled=false`.
 
-```powershell
-.\tools\demo-metrics-traffic.ps1
-# иногда так: .\tools\demo-metrics-traffic.ps1 -BaseUrl "http://localhost:5086" -Rounds 5 -SleepSec 4
-```
-
-Скрипт создаёт заказы, дергает список и карточки и меняет статусы с паузами, чтобы у меня в Prometheus/Loki что-то появилось.
-
-В **Docker Compose** на сервисе **api** я по умолчанию включил похожий сценарий через **`DemoTraffic__*`** (см. `docker-compose.yml`): через примерно 1–2 минуты после `up` метрики начинают наполняться сами. Чтобы отключить: убираю `DemoTraffic__Enabled=true` или ставлю `DemoTraffic__Enabled=false`.
+Дальше можно добить нагрузку вручную командами `curl` из этого раздела.
 
 ### 1. Создать заказ
 
@@ -167,10 +160,12 @@ node signalr-client.js
 ### Где я смотрю трейсы и дашборды
 
 1. **Трейсы** — Jaeger: http://localhost:16686 — выбираю сервис `order-tracking-api` или `order-tracking-worker`, жму «Find Traces».
-2. **Метрики и дашборды** — Grafana: http://localhost:13001 (у меня Prometheus, Loki и OpenSearch подключаются через provisioning). VictoriaLogs отдельно: http://localhost:9428.
+2. **Метрики и дашборды** — Grafana: http://localhost:13001 (Prometheus, Loki, OpenSearch datasource и **VictoriaLogs** через плагин `victoriametrics-logs-datasource`, см. `docker-compose.yml`). Отдельный UI VictoriaLogs: http://localhost:9428.
 3. **Сырые метрики** — Prometheus: http://localhost:9090 — у меня он скрейпит **`/metrics`** у **api:8080** и **worker:9464**.
 
 Текстовое описание моего дашборда Grafana и скрины для отчёта я вынес в [docs/grafana-dashboard.md](docs/grafana-dashboard.md).
+
+**Логи и языки запросов** — уже в проекте: OTLP из API/Worker → collector → **Loki + OpenSearch + VictoriaLogs**; в Grafana на дашборде **три панели Logs** (LogQL / LogsQL / Lucene). Подробно: [docs/logs-query-languages.md](docs/logs-query-languages.md).
 
 ### Что именно я трейсю
 

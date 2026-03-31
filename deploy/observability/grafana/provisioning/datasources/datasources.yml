@@ -30,3 +30,10 @@ datasources:
       index: "otel-logs*"
       logMessageField: message
       logLevelField: log.level
+
+  - name: VictoriaLogs
+    uid: vl
+    type: victoriametrics-logs-datasource
+    access: proxy
+    url: http://victorialogs:9428
+    editable: true

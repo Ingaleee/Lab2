@@ -426,19 +426,19 @@
       "type": "timeseries"
     },
     {
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 46 },
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 46 },
       "id": 11,
       "options": {
         "code": { "language": "markdown", "showLineNumbers": false, "showMiniMap": false },
-        "content": "# Заказы как «задачи»: backlog, выполнение, просрочка (продукт, не HTTP RPS)\n\nПороги SLA в коде: **New** старше **24ч**, **InProgress** без движения **72ч** — эвристика «просрочено / зависло».\n\n**Сколько «задач» сейчас в очереди (New+InProgress):**\n```promql\nsum(order_tracking_orders_work_queue_open)\n```\n\n**Запас заказов по статусам (как «черновики / в работе / сдано»):**\n```promql\nsum by (status) (order_tracking_orders_stock_by_status)\n```\n\n**Сколько сейчас под SLA-риском:**\n```promql\nsum by (reason) (order_tracking_orders_sla_at_risk)\n```\n\n**Сколько успешно «закрыто» за интервал дашборда (Delivered):**\n```promql\nsum(increase(order_tracking_orders_completed_total[$__range]))\n```\n\n**Разрез воронки статусов:**\n```promql\ntopk(12, sum by (from_status, to_status) (increase(order_tracking_orders_status_updates_total[$__range])))\n```\n\n**LogQL — факт доставки статуса в UI (в Loki у OTLP-логов лейбл `job`, не `service_name`):**\n```logql\n{job=~\"order-tracking.*\"} |= \"Broadcasted\"\n```\n",
+        "content": "# Заказы как «задачи» + языки запросов к логам\n\n## PromQL (кратко)\nПороги SLA: **New** > **24ч**, **InProgress** без движения **72ч**.\n\n**Очередь New+InProgress:** `sum(order_tracking_orders_work_queue_open)` · **Запасы по статусам:** `sum by (status) (order_tracking_orders_stock_by_status)` · **SLA-риски:** `sum by (reason) (order_tracking_orders_sla_at_risk)` · **Delivered за окно:** `sum(increase(order_tracking_orders_completed_total[$__range]))` · **Воронка:** `topk(12, sum by (from_status, to_status) (increase(order_tracking_orders_status_updates_total[$__range])))`\n\n---\n\n## Поток логов приложения (OTLP → collector)\nAPI и Worker шлют логи через **OpenTelemetry OTLP** в `otel-collector`. В пайплайне `logs` экспорт идёт в **три** бэкенда параллельно: **Loki**, **OpenSearch** (индекс ECS `otel-logs`), **VictoriaLogs**. Один и тот же смысл события можно искать разными языками запросов.\n\n---\n\n## 1) Grafana Loki — **LogQL**\n**Селектор по лейблам** (после экспортера Loki у OTLP чаще виден **`job`**, а не `service_name`):\n```logql\n{job=~\"order-tracking.*\"}\n```\n**Фильтр по подстроке в строке лога:**\n```logql\n{job=~\"order-tracking.*\"} |= \"Broadcasted\"\n```\n**Регулярка / уровень (если разобрали json):**\n```logql\n{job=~\"order-tracking.*\"} |~ \"(?i)error\"\n```\n**Подсчёт строк за интервал (лог как метрика):**\n```logql\nsum(count_over_time({job=~\"order-tracking.*\"} |= \"Broadcasted\" [$__interval]))\n```\nДокументация: [LogQL](https://grafana.com/docs/loki/latest/query/log_queries/).\n\n---\n\n## 2) VictoriaLogs — **LogsQL** (в Grafana нужен плагин `victoriametrics-logs-datasource`)\nРесурсные атрибуты OTLP попадают в **поля потока**; для сервиса обычно есть **`service.name`**.\n**Поток + слово в сообщении:**\n```logsql\n{service.name=~\"order-tracking.*\"} Broadcasted\n```\n**Только текст (ищется в части полей, см. docs):**\n```logsql\nBroadcasted\n```\n**Прямой запрос HTTP (как на экзамене «покажи curl»):**\n`POST /select/logsql/query` с `query=...&start=...&end=...` — см. [Querying](https://docs.victoriametrics.com/victorialogs/querying/).\nСпецификация: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).\n\n---\n\n## 3) OpenSearch — **Lucene** и **DQL** в Dashboards\nИндекс у коллектора: **`otel-logs*`**, время: **`@timestamp`**, поле сообщения в ECS: **`message`**.\n**Lucene (Discover / Dev Tools):**\n```\nlog.level:Information AND message:Broadcasted AND service.name:order-tracking*\n```\n**DQL** (синтаксис «как KQL» в OpenSearch Dashboards 2.x, режим DQL):\n```\nlog.level: Information and message: *Broadcasted* and service.name: order-tracking*\n```\nЕсли поля нет под таким именем — открой одну запись в Discover и посмотри точные ключи после ECS-маппинга exporter’а.\n\n---\n\n## Панели логов на этом дашборде\nПод шпаргалкой три колонки **Logs**: **Loki** (язык **LogQL**), **VictoriaLogs** (**LogsQL**), **OpenSearch** (**Lucene** к индексу `otel-logs*` — тот же поток OTLP; в OpenSearch Dashboards тот же смысл ищется в **DQL** «как KQL»).\n\n---\n\n## Что проверить преподу устно\nОдин источник правды в коде (**ILogger** + OTLP), три независимых хранилища для сравнения языков запросов; разница **лейблов/полей** (`job` в Loki vs `service.name` в VL/OS); что **Explore** в Grafana для Loki, VictoriaLogs и OpenSearch — разные datasource’ы.\n",
         "mode": "markdown"
       },
-      "title": "Шпаргалка: PromQL + LogQL (под требования к продуктовым метрикам)",
+      "title": "Шпаргалка: PromQL + LogQL + LogsQL + OpenSearch",
       "type": "text"
     },
     {
       "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 54 },
+      "gridPos": { "h": 12, "w": 8, "x": 0, "y": 60 },
       "id": 12,
       "options": {
         "dedupStrategy": "none",
@@ -458,17 +458,79 @@
           "refId": "A"
         }
       ],
-      "title": "Журнал событий доставки статуса (LogQL: job ~ order-tracking.* + Broadcasted)",
+      "title": "Loki — доставка в UI (LogQL)",
+      "type": "logs"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "vl" },
+      "gridPos": { "h": 12, "w": 8, "x": 8, "y": 60 },
+      "id": 27,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "victoriametrics-logs-datasource", "uid": "vl" },
+          "editorMode": "code",
+          "expr": "{service.name=~\"order-tracking.*\"} Broadcasted",
+          "maxLines": 500,
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "VictoriaLogs — те же события (LogsQL)",
+      "type": "logs"
+    },
+    {
+      "datasource": { "type": "grafana-opensearch-datasource", "uid": "os" },
+      "gridPos": { "h": 12, "w": 8, "x": 16, "y": 60 },
+      "id": 28,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "alias": "",
+          "bucketAggs": [],
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "os" },
+          "format": "",
+          "hide": false,
+          "metrics": [
+            {
+              "id": "1",
+              "settings": { "limit": "500" },
+              "type": "logs"
+            }
+          ],
+          "query": "message:*Broadcasted* AND log.level:Information",
+          "queryType": "lucene",
+          "refId": "A",
+          "timeField": "@timestamp"
+        }
+      ],
+      "title": "OpenSearch otel-logs (Lucene)",
       "type": "logs"
     }
   ],
   "refresh": "10s",
   "schemaVersion": 39,
-  "tags": ["order-tracking", "product-metrics"],
+  "tags": ["order-tracking", "product-metrics", "logs"],
   "templating": { "list": [] },
   "time": { "from": "now-1h", "to": "now" },
   "timezone": "browser",
   "title": "Order tracking — продуктовые метрики и запросы",
   "uid": "order-tracking-metrics",
-  "version": 4
+  "version": 6
 }

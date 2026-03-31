@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -9,7 +7,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "15432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -63,6 +61,59 @@ services:
     environment:
       - COLLECTOR_OTLP_ENABLED=true
 
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: order-tracking-loki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "13100:3100"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3100/ready || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  victorialogs:
+    image: victoriametrics/victoria-logs:v1.48.0
+    container_name: order-tracking-victorialogs
+    ports:
+      - "9428:9428"
+
+  opensearch:
+    image: opensearchproject/opensearch:2.11.1
+    container_name: order-tracking-opensearch
+    environment:
+      - discovery.type=single-node
+      - plugins.security.disabled=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf 'http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow&timeout=120s' -o /dev/null"]
+      interval: 15s
+      timeout: 130s
+      retries: 8
+      start_period: 90s
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.11.1
+    container_name: order-tracking-opensearch-dashboards
+    environment:
+      OPENSEARCH_HOSTS: '["http://opensearch:9200"]'
+      DISABLE_SECURITY_DASHBOARDS_PLUGIN: "true"
+    ports:
+      - "5601:5601"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.104.0
     container_name: order-tracking-otel-collector
@@ -72,8 +123,55 @@ services:
     ports:
       - "4317:4317"
       - "4318:4318"
+      - "8889:8889"
     depends_on:
-      - jaeger
+      jaeger:
+        condition: service_started
+      loki:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+      victorialogs:
+        condition: service_started
+
+  prometheus:
+    image: prom/prometheus:v2.53.1
+    container_name: order-tracking-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    volumes:
+      - ./deploy/observability/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    depends_on:
+      otel-collector:
+        condition: service_started
+      api:
+        condition: service_started
+      worker:
+        condition: service_started
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: order-tracking-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SERVER_HTTP_ADDR: 0.0.0.0
+      # Плагин VictoriaLogs: Explore + Logs panel с языком LogsQL
+      GF_INSTALL_PLUGINS: victoriametrics-logs-datasource
+    volumes:
+      - ./deploy/observability/grafana/provisioning:/etc/grafana/provisioning
+      - ./deploy/observability/grafana/dashboards:/var/lib/grafana/dashboards
+    ports:
+      - "13001:3000"
+    depends_on:
+      - prometheus
+      - loki
+      - opensearch
+      - victorialogs
 
   api:
     build:
@@ -93,6 +191,10 @@ services:
       - OpenTelemetry__Otlp__Endpoint=http://otel-collector:4317
       - OpenTelemetry__Exporters__Otlp=true
       - OpenTelemetry__Exporters__Console=false
+      - DemoTraffic__Enabled=true
+      - DemoTraffic__BaseUrl=http://127.0.0.1:8080
+      - DemoTraffic__Rounds=2
+      - DemoTraffic__DelayMs=4000
     ports:
       - "5086:8080"
     depends_on:
@@ -133,6 +235,19 @@ services:
         condition: service_healthy
       otel-collector:
         condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:5086
+        VITE_SIGNALR_HUB_URL: http://localhost:5086/hubs/orders
+    container_name: order-tracking-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
 
 volumes:
   postgres_data:

@@ -58,11 +58,11 @@
 
 ---
 
-## 4. Шпаргалка PromQL / LogQL на дашборде
+## 4. Шпаргалка PromQL + LogQL + LogsQL + OpenSearch на дашборде
 
 ![Текстовая панель со примерами PromQL и LogQL из дашборда](grafana/04-promql-cheatsheet.png)
 
-Я добавил **текстовую** панель с примерами: запасы, SLA по `reason`, прирост **Delivered**, топ переходов и **LogQL** под логи доставки в UI.
+Я добавил **текстовую** панель с примерами: продуктовые **PromQL**, **LogQL** (Loki), **LogsQL** (VictoriaLogs), а также **Lucene / DQL** для OpenSearch — и коротко описал пайплайн OTLP → collector → три бэкенда. Актуальный текст панели лежит в JSON дашборда; для отчёта я ещё вынес развёрнутое объяснение в **[logs-query-languages.md](logs-query-languages.md)**.
 
 Я стараюсь держать интервал (**Last 15m** / **1h**) таким же, о чём пишу в отчёте: на длинном окне короткий всплеск визуально «прижат».
 
@@ -84,11 +84,23 @@
 
 ---
 
+## 6. Три колонки логов: Loki, VictoriaLogs, OpenSearch
+
+Внизу дашборда (`order-tracking-metrics.json`, версия 6+) у меня **три** панели типа **Logs** из одного OTLP-потока:
+
+1. **Loki** — **LogQL**: `{job=~"order-tracking.*"} |= "Broadcasted"`.
+2. **VictoriaLogs** — **LogsQL**: `{service.name=~"order-tracking.*"} Broadcasted` (нужен плагин `victoriametrics-logs-datasource` в Grafana).
+3. **OpenSearch** (`otel-logs*`) — **Lucene** в Grafana (тот же индекс, что пишет collector в OpenSearch): например `message:*Broadcasted* AND log.level:Information`. В **OpenSearch Dashboards** тот же смысл можно набрать в **DQL** «как KQL».
+
+Подробнее — **[logs-query-languages.md](logs-query-languages.md)**.
+
+---
+
 ## Как я снова получаю «живой» дашборд
 
 1. Поднимаю стек: `docker compose up -d` (у меня на **api** часто уже включён **DemoTraffic**).
-2. Либо запускаю `.\tools\demo-metrics-traffic.ps1`.
-3. В Grafana ставлю **Last 15m** или **Last 1h** и обновление **10s** / **1m**.
+2. Либо гоняю API вручную (`curl`/Swagger) — см. корневой README.
+3. В Grafana ставлю **Last 15m** или **Last 1h** и обновление **10s** / **1m**; для VictoriaLogs на **первом** старте контейнера Grafana жду, пока докачается плагин (десятки секунд).
 4. Проверяю, что Prometheus скрейпит **`api:8080/metrics`** и **`worker:9464/metrics`** — у меня это в `deploy/observability/prometheus.yml`.
 
 Если stat-панели с `increase(...[$__range])` вели себя странно, я в JSON дашборда включил **instant**-запросы к Prometheus — см. мой актуальный `order-tracking-metrics.json`.

@@ -11,6 +11,10 @@
 
 В основном README они вставлены в блок «Как я описываю API» и «Наблюдаемость».
 
+## Логи: LogQL, LogsQL, OpenSearch
+
+Я расписал архитектуру и примеры запросов в **[logs-query-languages.md](logs-query-languages.md)** (на защите удобно отвечать «почему разные поля в Loki и VictoriaLogs» и «чем DQL похож на KQL»).
+
 ## Grafana (обязательно для отчёта по метрикам)
 
 Я описал панели дашборда у себя в **[grafana-dashboard.md](grafana-dashboard.md)** и приложил скрины в папке **`grafana/`**:

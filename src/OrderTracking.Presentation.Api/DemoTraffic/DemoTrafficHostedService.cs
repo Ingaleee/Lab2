@@ -1,168 +1,98 @@
 using System.Net.Http.Json;
-using Microsoft.Extensions.Hosting;
-using System.Text.Json.Serialization;
+using System.Text.Json;
 
 namespace OrderTracking.Presentation.Api.DemoTraffic;
 
-/// <summary>HTTP-прогон сценариев заказов при старте (для наполнения БД, метрик Prometheus и логов Loki без ручного curl).</summary>
-public sealed class DemoTrafficHostedService : BackgroundService
+file static class DemoTrafficJson
+{
+    public static readonly JsonSerializerOptions Options = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+}
+
+/// <summary>
+/// Periodically calls the local HTTP API to generate traces, metrics, and logs for demos.
+/// </summary>
+internal sealed class DemoTrafficHostedService : BackgroundService
 {
     private readonly IConfiguration _configuration;
-    private readonly IHostApplicationLifetime _hostLifetime;
     private readonly ILogger<DemoTrafficHostedService> _logger;
 
     public DemoTrafficHostedService(
         IConfiguration configuration,
-        IHostApplicationLifetime hostLifetime,
         ILogger<DemoTrafficHostedService> logger)
     {
         _configuration = configuration;
-        _hostLifetime = hostLifetime;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (!_configuration.GetValue("DemoTraffic:Enabled", false))
-        {
-            return;
-        }
-
-        var baseUrl = _configuration["DemoTraffic:BaseUrl"] ?? "http://127.0.0.1:8080";
+        var baseUrl = (_configuration["DemoTraffic:BaseUrl"] ?? "http://127.0.0.1:8080").TrimEnd('/');
         var rounds = _configuration.GetValue("DemoTraffic:Rounds", 2);
         var delayMs = _configuration.GetValue("DemoTraffic:DelayMs", 4000);
 
-        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _hostLifetime.ApplicationStarted.Register(started.SetResult);
-        await started.Task.WaitAsync(stoppingToken);
-        await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
+        _logger.LogInformation(
+            "DemoTraffic: BaseUrl={BaseUrl}, Rounds={Rounds}, DelayMs={DelayMs}",
+            baseUrl,
+            rounds,
+            delayMs);
 
-        using var client = new HttpClient { BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/") };
-        client.Timeout = TimeSpan.FromMinutes(3);
+        await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken).ConfigureAwait(false);
 
-        try
+        using var client = new HttpClient
         {
-            for (var r = 0; r < rounds && !stoppingToken.IsCancellationRequested; r++)
+            BaseAddress = new Uri(baseUrl + "/"),
+            Timeout = TimeSpan.FromSeconds(60)
+        };
+
+        for (var r = 0; r < rounds && !stoppingToken.IsCancellationRequested; r++)
+        {
+            try
             {
-                var created = new List<Guid>();
-                for (var i = 0; i < 10; i++)
-                {
-                    var num = $"AUTO-DEMO-r{r}-n{i}-{Random.Shared.Next(100000, 999999)}";
-                    var createdDto = await client.PostAsJsonAsync(
-                        "api/orders",
-                        new CreateOrderDto(num, $"Auto demo traffic ({num})"),
-                        stoppingToken);
-                    createdDto.EnsureSuccessStatusCode();
-                    var body = await createdDto.Content.ReadFromJsonAsync<OrderResponseDto>(cancellationToken: stoppingToken);
-                    if (body?.Id is { } id)
-                    {
-                        created.Add(id);
-                    }
-                }
-
-                for (var k = 0; k < 5; k++)
-                {
-                    using var list = await client.GetAsync("api/orders", stoppingToken);
-                    list.EnsureSuccessStatusCode();
-                }
-
-                foreach (var id in created)
-                {
-                    using var one = await client.GetAsync($"api/orders/{id:D}", stoppingToken);
-                    one.EnsureSuccessStatusCode();
-                }
-
-                if (created.Count < 8)
-                {
-                    continue;
-                }
-
-                await RunTransitions(client, created, delayMs, stoppingToken);
-
-                for (var k = 0; k < 8; k++)
-                {
-                    using var list = await client.GetAsync("api/orders", stoppingToken);
-                    list.EnsureSuccessStatusCode();
-                }
+                await RunRoundAsync(client, r, stoppingToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "DemoTraffic round {Round} failed", r);
             }
 
-            _logger.LogInformation("DemoTraffic: прогон завершён ({Rounds} раунд(ов)); обновите Grafana (Last 15m).", rounds);
+            if (!stoppingToken.IsCancellationRequested)
+            {
+                await Task.Delay(delayMs, stoppingToken).ConfigureAwait(false);
+            }
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogWarning(ex, "DemoTraffic: ошибка прогона (метрики могут остаться нулевыми).");
-        }
+
+        _logger.LogInformation("DemoTraffic finished after {Rounds} rounds", rounds);
     }
 
-    private static async Task RunTransitions(HttpClient client, List<Guid> ids, int delayMs, CancellationToken ct)
+    private static async Task RunRoundAsync(HttpClient client, int round, CancellationToken ct)
     {
-        var a = ids[0];
-        var b = ids[1];
-        var c = ids[2];
-        var d = ids[3];
-        var e = ids[4];
-        var f = ids[5];
-        var g = ids[6];
-        var h = ids[7];
+        var suffix = $"{DateTimeOffset.UtcNow:HHmmssfff}-r{round}";
+        using var createRes = await client.PostAsJsonAsync(
+                "api/orders",
+                new { orderNumber = $"DEMO-{suffix}", description = "Demo traffic" },
+                DemoTrafficJson.Options,
+                ct)
+            .ConfigureAwait(false);
+        createRes.EnsureSuccessStatusCode();
+        var createJson = await createRes.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        using var doc = JsonDocument.Parse(createJson);
+        var id = doc.RootElement.GetProperty("id").GetGuid();
 
-        async Task Patch(Guid id, string status)
+        await client.GetAsync("api/orders", ct).ConfigureAwait(false);
+        await client.GetAsync($"api/orders/{id}", ct).ConfigureAwait(false);
+
+        foreach (var status in new[] { "InProgress", "Delivered" })
         {
-            using var res = await client.PatchAsJsonAsync(
-                $"api/orders/{id:D}/status",
-                new UpdateStatusDto(status),
-                ct);
-            res.EnsureSuccessStatusCode();
+            using var patchRes = await client.PatchAsJsonAsync(
+                    $"api/orders/{id}/status",
+                    new { status },
+                    DemoTrafficJson.Options,
+                    ct)
+                .ConfigureAwait(false);
+            patchRes.EnsureSuccessStatusCode();
         }
-
-        async Task Wait()
-        {
-            await Task.Delay(delayMs, ct);
-        }
-
-        await Patch(a, "InProgress");
-        await Wait();
-        await Patch(a, "Delivered");
-        await Wait();
-
-        await Patch(b, "InProgress");
-        await Wait();
-        await Patch(b, "Cancelled");
-        await Wait();
-
-        await Patch(c, "Cancelled");
-        await Wait();
-
-        await Patch(d, "InProgress");
-        await Wait();
-        await Patch(d, "Delivered");
-        await Wait();
-
-        await Patch(e, "InProgress");
-        await Wait();
-        await Patch(e, "Delivered");
-        await Wait();
-
-        await Patch(f, "Cancelled");
-        await Wait();
-
-        await Patch(g, "InProgress");
-        await Wait();
-        await Patch(g, "Cancelled");
-        await Wait();
-
-        await Patch(h, "InProgress");
-        await Wait();
-        await Patch(h, "Delivered");
-        await Wait();
-    }
-
-    private sealed record CreateOrderDto(string OrderNumber, string Description);
-
-    private sealed record UpdateStatusDto(string Status);
-
-    private sealed record OrderResponseDto
-    {
-        [JsonPropertyName("id")]
-        public Guid Id { get; init; }
     }
 }
