@@ -163,9 +163,9 @@ node signalr-client.js
 2. **Метрики и дашборды** — Grafana: http://localhost:13001 (Prometheus, Loki, OpenSearch datasource и **VictoriaLogs** через плагин `victoriametrics-logs-datasource`, см. `docker-compose.yml`). Отдельный UI VictoriaLogs: http://localhost:9428.
 3. **Сырые метрики** — Prometheus: http://localhost:9090 — у меня он скрейпит **`/metrics`** у **api:8080** и **worker:9464**.
 
-Текстовое описание моего дашборда Grafana и скрины для отчёта я вынес в [docs/grafana-dashboard.md](docs/grafana-dashboard.md).
+Описание дашборда Grafana и скриншоты: [docs/grafana-dashboard.md](docs/grafana-dashboard.md).
 
-**Логи и языки запросов** — уже в проекте: OTLP из API/Worker → collector → **Loki + OpenSearch + VictoriaLogs**; в Grafana на дашборде **три панели Logs** (LogQL / LogsQL / Lucene). Подробно: [docs/logs-query-languages.md](docs/logs-query-languages.md).
+**Логи:** OTLP из API и Worker → collector → **Loki**, **OpenSearch**, **VictoriaLogs**. В Grafana на дашборде три панели **Logs**: LogQL, LogsQL, Lucene. Подробности: [docs/logs-query-languages.md](docs/logs-query-languages.md).
 
 ### Что именно я трейсю
 
