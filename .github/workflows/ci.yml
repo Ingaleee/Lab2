@@ -252,7 +252,7 @@ jobs:
         run: docker compose -f docker-compose.smoke.yml down -v --remove-orphans || true
 
       - name: Trivy — order-tracking-api:local
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: order-tracking-api:local
           scan-type: image
@@ -261,7 +261,7 @@ jobs:
           format: table
 
       - name: Trivy — order-tracking-worker:local
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: order-tracking-worker:local
           scan-type: image
@@ -270,7 +270,7 @@ jobs:
           format: table
 
       - name: Trivy — order-tracking-frontend:local
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: order-tracking-frontend:local
           scan-type: image
@@ -279,7 +279,7 @@ jobs:
           format: table
 
       - name: Trivy — gate CRITICAL (образ api; job падает при CRITICAL CVE)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: order-tracking-api:local
           scan-type: image
