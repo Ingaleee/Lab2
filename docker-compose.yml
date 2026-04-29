@@ -174,12 +174,16 @@ services:
       - victorialogs
 
   api:
+    image: order-tracking-api:local
     build:
       context: .
       dockerfile: src/OrderTracking.Presentation.Api/Dockerfile
     container_name: order-tracking-api
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      # Пустое значение снимает дефолт образа (8080 через deferred endpoints), чтобы совпадало с app.Urls в Program.cs
+      - ASPNETCORE_HTTP_PORTS=
       - ConnectionStrings__Postgres=Host=postgres;Port=5432;Database=order_tracking;Username=postgres;Password=postgres
       - Kafka__BootstrapServers=redpanda:9092
       - Kafka__ClientId=order-tracking-api
@@ -208,9 +212,11 @@ services:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 12
+      start_period: 60s
 
   worker:
+    image: order-tracking-worker:local
     build:
       context: .
       dockerfile: src/OrderTracking.Presentation.Worker/Dockerfile
@@ -237,6 +243,7 @@ services:
         condition: service_started
 
   frontend:
+    image: order-tracking-frontend:local
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -247,7 +254,8 @@ services:
     ports:
       - "5173:80"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   postgres_data:

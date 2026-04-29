@@ -1,0 +1,331 @@
+# =============================================================================
+# CI: workflow-lint (actionlint + Hadolint) → (.NET ∥ frontend ∥ docs-assets) → Docker + smoke + Trivy;
+#     на PR — Dependency review. checks: write только у job dotnet (TRX).
+# =============================================================================
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOCKER_BUILDKIT: 1
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  workflow-lint:
+    name: Lint — YAML (actionlint) + Dockerfile (hadolint)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install actionlint v1.7.7
+        run: |
+          curl -fsSL -o actionlint.tgz https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
+          tar xf actionlint.tgz actionlint
+          chmod +x actionlint
+
+      - name: actionlint
+        run: ./actionlint -color .github/workflows/*.yml
+
+      - name: Install hadolint
+        run: |
+          curl -fsSL -o /tmp/hadolint https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64
+          chmod +x /tmp/hadolint
+          sudo mv /tmp/hadolint /usr/local/bin/hadolint
+
+      - name: Hadolint (Dockerfile api, worker, frontend)
+        run: |
+          hadolint --config .hadolint.yaml src/OrderTracking.Presentation.Api/Dockerfile
+          hadolint --config .hadolint.yaml src/OrderTracking.Presentation.Worker/Dockerfile
+          hadolint --config .hadolint.yaml frontend/Dockerfile
+
+      - name: Job summary
+        run: |
+          echo "### Workflow lint" >> "$GITHUB_STEP_SUMMARY"
+          echo "- [\`actionlint\`](https://github.com/rhysd/actionlint): **\`.github/workflows/*.yml\`**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`hadolint\`: **api** / **worker** / **frontend** Dockerfile и [\`.hadolint.yaml\`](https://github.com/hadolint/hadolint#configure)" >> "$GITHUB_STEP_SUMMARY"
+
+  dotnet:
+    name: .NET — restore, build, test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: [workflow-lint]
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: .NET SDK version
+        run: dotnet --version
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.props', 'global.json', 'nuget.config') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore
+        run: dotnet restore OrderTracking.sln
+
+      - name: Verify formatting (dotnet format)
+        run: dotnet format OrderTracking.sln --verify-no-changes --verbosity minimal
+
+      - name: Build
+        run: dotnet build OrderTracking.sln -c Release --no-restore
+
+      - name: Test (with code coverage)
+        run: dotnet test OrderTracking.sln -c Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory "${{ github.workspace }}/TestResults" --logger "trx"
+
+      - name: Publish .NET test results (TRX → Checks)
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && hashFiles('TestResults/**/*.trx') != ''
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: TestResults/**/*.trx
+          check_name: .NET tests
+          comment_mode: off
+
+      - name: Upload test results and coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-test-results
+          path: TestResults/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Job summary
+        if: always()
+        run: |
+          echo "### .NET" >> "$GITHUB_STEP_SUMMARY"
+          echo "- SDK: \`$(dotnet --version)\`, solution: \`OrderTracking.sln\`, configuration: Release" >> "$GITHUB_STEP_SUMMARY"
+          echo "- В CI (**\`GITHUB_ACTIONS=true\`**): предупреждения NuGet Audit **NU1902–NU1904** (уязвимости moderate и выше) трактуются как **ошибки** (\`Directory.Build.props\`)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- После restore: \`dotnet format --verify-no-changes\`; затем build и \`dotnet test --collect:\"XPlat Code Coverage\"\` (unit + integration, Cobertura в артефакте)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Отчёт TRX дублируется в **Checks** (вкладка тестов у PR/commit), если источник не fork" >> "$GITHUB_STEP_SUMMARY"
+
+  frontend:
+    name: Frontend — audit high, lint, build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: [workflow-lint]
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Node.js version
+        run: node --version
+
+      - name: Install
+        run: npm ci
+
+      - name: ESLint cache
+        uses: actions/cache@v4
+        with:
+          path: frontend/.eslintcache
+          key: ${{ runner.os }}-eslint-${{ hashFiles('frontend/eslint.config.mjs', 'frontend/package-lock.json', 'frontend/tsconfig.json', 'frontend/tsconfig.app.json', 'frontend/tsconfig.node.json') }}
+          restore-keys: |
+            ${{ runner.os }}-eslint-
+
+      - name: Frontend CI (audit high, lint, format, build)
+        run: npm run ci
+
+      - name: Job summary
+        run: |
+          echo "### Frontend" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Node \`$(node --version)\` from \`frontend/.nvmrc\`, \`npm ci\`, затем \`npm run ci\` (= **\`npm audit --audit-level=high\`** → lint → format:check → build)" >> "$GITHUB_STEP_SUMMARY"
+
+  docs-assets:
+    name: Docs — PNG, ссылки (lychee)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: [workflow-lint]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+
+      - name: Проверка наличия ожидаемых PNG (scripts/verify-docs-assets.mjs)
+        run: node scripts/verify-docs-assets.mjs
+
+      - name: Проверка ссылок в Markdown (lychee)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: lycheeverse/lychee-action@v2.4.0
+        with:
+          args: --verbose --no-progress --exclude-mail --max-concurrency 6 --accept 200,206,429 --exclude '^https?://(127\.0\.0\.1|localhost)' README.md CONTRIBUTING.md SECURITY.md docs
+
+      - name: Job summary
+        run: |
+          echo "### Документация" >> "$GITHUB_STEP_SUMMARY"
+          echo "- PNG: все пути из \`scripts/verify-docs-assets.mjs\` (съёмка: \`docs/screenshots/README.md\`, \`tools/doc-screenshots\`)." >> "$GITHUB_STEP_SUMMARY"
+          echo "- Ссылки: [\`lychee\`](https://github.com/lycheeverse/lychee) по \`README.md\`, \`CONTRIBUTING.md\`, \`SECURITY.md\`, каталогу \`docs/\` (localhost исключён)." >> "$GITHUB_STEP_SUMMARY"
+
+  docker:
+    name: Docker — образы api, worker, frontend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    needs: [dotnet, frontend, docs-assets]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Validate Compose files
+        run: |
+          docker compose -f docker-compose.yml config -q
+          docker compose -f docker-compose.smoke.yml config -q
+
+      - name: Docker Compose build
+        env:
+          BUILDKIT_PROGRESS: plain
+        run: docker compose build --parallel --pull api worker frontend
+
+      - name: Smoke — API отвечает на GET /health (минимальный Compose)
+        run: |
+          set -euo pipefail
+          docker compose -f docker-compose.smoke.yml up -d --wait || docker compose -f docker-compose.smoke.yml up -d
+          for _ in $(seq 1 90); do
+            if curl -fsS --connect-timeout 2 --max-time 12 http://127.0.0.1:15086/health; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Smoke: за ~3 минуты не получили успешный ответ от GET /health"
+          docker compose -f docker-compose.smoke.yml logs --tail 200 api || true
+          exit 1
+
+      - name: Smoke cleanup
+        if: always()
+        run: docker compose -f docker-compose.smoke.yml down -v --remove-orphans || true
+
+      - name: Trivy — order-tracking-api:local
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: order-tracking-api:local
+          scan-type: image
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+          format: table
+
+      - name: Trivy — order-tracking-worker:local
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: order-tracking-worker:local
+          scan-type: image
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+          format: table
+
+      - name: Trivy — order-tracking-frontend:local
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: order-tracking-frontend:local
+          scan-type: image
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+          format: table
+
+      - name: Trivy — gate CRITICAL (образ api; job падает при CRITICAL CVE)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: order-tracking-api:local
+          scan-type: image
+          severity: CRITICAL
+          exit-code: "1"
+          format: table
+
+      - name: Job summary
+        run: |
+          echo "### Docker" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`docker compose\` — валидация \`docker-compose.yml\` и \`docker-compose.smoke.yml\`; затем \`BUILDKIT_PROGRESS=plain docker compose build --parallel --pull api worker frontend\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Smoke:** postgres + redpanda + \`order-tracking-api:local\` (\`docker-compose.smoke.yml\`); \`up -d --wait\` либо \`up -d\`; цикл \`curl\` **GET /health** (до ~3 мин); при падении — фрагмент логов **api**; затем \`down -v\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Образы приложений помечены тегами \`order-tracking-api:local\`, \`order-tracking-worker:local\`, \`order-tracking-frontend:local\` в \`docker-compose.yml\` — предсказуемые имена для сканирования" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Trivy:** три скана HIGH+CRITICAL (\`exit-code: 0\`) — таблица в логе; затем отдельный шаг **только CRITICAL** с \`exit-code: 1\` для \`order-tracking-api:local\` — job красный при неисправимых критических CVE в образе" >> "$GITHUB_STEP_SUMMARY"
+
+  dependency-review:
+    name: Dependency review (PR only)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request'
+    needs: [workflow-lint]
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/dependency-review-action@v4
+
+      - name: Job summary
+        run: |
+          echo "### Dependency review" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Сравнение зависимостей base…head на PR ([документация](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-dependency-review))" >> "$GITHUB_STEP_SUMMARY"
+
+  ci-success:
+    name: CI — все проверки пройдены
+    runs-on: ubuntu-24.04
+    needs: [workflow-lint, dotnet, frontend, docs-assets, docker]
+    if: success()
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Итог pipeline
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          echo "### CI pipeline" >> "$GITHUB_STEP_SUMMARY"
+          echo "Jobs **workflow-lint**, **dotnet**, **frontend**, **docs-assets**, **docker** (включая сборку образов, **smoke** **GET /health**, **Trivy**) выполнены успешно." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Этот прогон: [\`$RUN_URL\`]($RUN_URL)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "На **pull request** отдельно выполняется job **Dependency review** — при необходимости добавь её в branch protection." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Для защиты ветки: **Settings → Branches → Branch protection rule** — в списке обязательных проверок можно выбрать эту job (**CI — все проверки пройдены**) или отдельные job (**Lint — YAML + Dockerfile**, **.NET**, **frontend**, **Docs — PNG, ссылки**, **Docker**). Отдельно включите workflow **CodeQL** при необходимости." >> "$GITHUB_STEP_SUMMARY"

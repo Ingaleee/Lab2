@@ -12,3 +12,13 @@
 **/.dockerignore
 **/Dockerfile
 **/docker-compose*.yml
+
+# Не нужны в образах api/worker (контекст compose — корень репозитория)
+tests
+frontend
+docs
+.github
+.vscode
+deploy
+*.md
+LICENSE

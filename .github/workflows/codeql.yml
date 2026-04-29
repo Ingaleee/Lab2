@@ -1,0 +1,56 @@
+# =============================================================================
+# CodeQL: семантический анализ C# (security + quality). Отдельно от CI — свой статус в Checks.
+# Требует для загрузки SARIF: permissions security-events: write.
+# =============================================================================
+name: CodeQL
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    - cron: "25 4 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze C#
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+          queries: security-and-quality
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build solution (CodeQL)
+        env:
+          DOTNET_NOLOGO: true
+        run: |
+          dotnet restore OrderTracking.sln
+          dotnet build OrderTracking.sln -c Release --no-restore /p:SkipNSwag=true
+
+      - uses: github/codeql-action/analyze@v3
+
+      - name: Job summary
+        if: always()
+        run: |
+          echo "### CodeQL" >> "$GITHUB_STEP_SUMMARY"
+          echo "- C#: queries **security-and-quality**; сборка: \`dotnet build OrderTracking.sln -c Release /p:SkipNSwag=true\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Результаты: **Security → Code scanning** в репозитории" >> "$GITHUB_STEP_SUMMARY"
