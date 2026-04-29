@@ -18,7 +18,7 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.ToTable("orders");
 
         builder.HasKey(x => x.Id);
-        
+
         builder.Property(x => x.Id)
             .HasColumnName("Id");
 

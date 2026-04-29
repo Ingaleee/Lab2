@@ -122,19 +122,19 @@ public sealed class OrderStatusKafkaConsumerHostedService : BackgroundService
 
                 consumer.Commit(cr);
             }
-                catch (ConsumeException ex)
+            catch (ConsumeException ex)
+            {
+                if (ex.Error.Code == Confluent.Kafka.ErrorCode.UnknownTopicOrPart)
                 {
-                    if (ex.Error.Code == Confluent.Kafka.ErrorCode.UnknownTopicOrPart)
-                    {
-                        _logger.LogWarning("Kafka topic not found. Waiting for topic creation. Topic={Topic}", _kafka.OrderStatusTopic);
-                        await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
-                    }
-                    else
-                    {
-                        _logger.LogError(ex, "Kafka consume exception");
-                        await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
-                    }
+                    _logger.LogWarning("Kafka topic not found. Waiting for topic creation. Topic={Topic}", _kafka.OrderStatusTopic);
+                    await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
                 }
+                else
+                {
+                    _logger.LogError(ex, "Kafka consume exception");
+                    await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
+                }
+            }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
             }

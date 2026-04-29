@@ -133,10 +133,20 @@ if (builder.Configuration.GetValue("DemoTraffic:Enabled", false))
 
 var app = builder.Build();
 
+// В Docker базовый образ задаёт ASPNETCORE_HTTP_PORTS; без явного адреса Kestrel может не слушать TCP для healthcheck/проброса портов.
+if (string.Equals(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"), "true", StringComparison.OrdinalIgnoreCase))
+{
+    app.Urls.Clear();
+    app.Urls.Add("http://0.0.0.0:8080");
+}
+
+app.UseMiddleware<SecurityHeadersMiddleware>();
+
 app.UseOpenTelemetryPrometheusScrapingEndpoint();
 
-using (var scope = app.Services.CreateScope())
+if (app.Configuration.GetValue("Database:ApplyMigrationsOnStartup", true))
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
 }
@@ -180,3 +190,7 @@ app.MapHub<OrdersHub>("/hubs/orders")
         .AllowCredentials());
 
 app.Run();
+
+public partial class Program
+{
+}

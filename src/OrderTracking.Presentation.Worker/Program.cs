@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Hosting;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -10,13 +10,9 @@ using OrderTracking.Infrastructure.Observability;
 using OrderTracking.Presentation.Worker.Outbox;
 using System.Reflection;
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
 
-builder.WebHost.UseUrls("http://0.0.0.0:9464");
-builder.WebHost.Configure(app =>
-{
-    app.UseOpenTelemetryPrometheusScrapingEndpoint();
-});
+builder.WebHost.UseSetting(WebHostDefaults.ServerUrlsKey, "http://0.0.0.0:9464");
 
 var otelSection = builder.Configuration.GetSection("OpenTelemetry");
 var serviceName = otelSection["ServiceName"] ?? "order-tracking-worker";
@@ -94,5 +90,8 @@ builder.Services.Configure<OutboxDispatcherOptions>(
 
 builder.Services.AddHostedService<OutboxDispatcherHostedService>();
 
-var host = builder.Build();
-await host.RunAsync();
+var app = builder.Build();
+
+app.UseOpenTelemetryPrometheusScrapingEndpoint();
+
+await app.RunAsync();

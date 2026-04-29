@@ -19,18 +19,18 @@ public sealed class OrderTests
         // Assert
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
-        
+
         var order = result.Value;
         Assert.Equal(orderNumber, order.OrderNumber);
         Assert.Equal(description, order.Description);
         Assert.Equal(OrderStatus.New, order.Status);
         Assert.Equal(now, order.CreatedAt);
         Assert.Equal(now, order.UpdatedAt);
-        
+
         var domainEvents = order.DomainEvents.ToList();
         Assert.Single(domainEvents);
         Assert.IsType<OrderCreatedDomainEvent>(domainEvents[0]);
-        
+
         var createdEvent = (OrderCreatedDomainEvent)domainEvents[0];
         Assert.Equal(order.Id, createdEvent.OrderId);
         Assert.Equal(orderNumber, createdEvent.OrderNumber);
@@ -87,11 +87,11 @@ public sealed class OrderTests
         Assert.True(result.IsSuccess);
         Assert.Equal(OrderStatus.InProgress, order.Status);
         Assert.Equal(now, order.UpdatedAt);
-        
+
         var domainEvents = order.DomainEvents.ToList();
         Assert.Single(domainEvents);
         Assert.IsType<OrderStatusChangedDomainEvent>(domainEvents[0]);
-        
+
         var statusChangedEvent = (OrderStatusChangedDomainEvent)domainEvents[0];
         Assert.Equal(order.Id, statusChangedEvent.OrderId);
         Assert.Equal(OrderStatus.New, statusChangedEvent.PreviousStatus);
@@ -203,7 +203,7 @@ public sealed class OrderTests
         // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal(OrderStatus.Cancelled, order.Status);
-        
+
         var domainEvents = order.DomainEvents.ToList();
         Assert.Single(domainEvents);
         Assert.IsType<OrderStatusChangedDomainEvent>(domainEvents[0]);
@@ -224,7 +224,7 @@ public sealed class OrderTests
         // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal(OrderStatus.Delivered, order.Status);
-        
+
         var domainEvents = order.DomainEvents.ToList();
         Assert.Single(domainEvents);
         Assert.IsType<OrderStatusChangedDomainEvent>(domainEvents[0]);
@@ -245,7 +245,7 @@ public sealed class OrderTests
         // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal(OrderStatus.Cancelled, order.Status);
-        
+
         var domainEvents = order.DomainEvents.ToList();
         Assert.Single(domainEvents);
         Assert.IsType<OrderStatusChangedDomainEvent>(domainEvents[0]);
