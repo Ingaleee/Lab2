@@ -2,6 +2,25 @@
 
 Здесь зафиксировано, как логи выходят из .NET, куда их отправляет коллектор и какими языками их можно запрашивать в Loki, VictoriaLogs и OpenSearch.
 
+```mermaid
+flowchart LR
+  subgraph apps["Приложение"]
+    API[API]
+    W[Worker]
+  end
+  OTLP[OTLP]
+  Coll[otel-collector]
+  Loki[Loki / LogQL]
+  OS[OpenSearch / Lucene DQL]
+  VL[VictoriaLogs / LogsQL]
+  API --> OTLP
+  W --> OTLP
+  OTLP --> Coll
+  Coll --> Loki
+  Coll --> OS
+  Coll --> VL
+```
+
 ---
 
 ## 1. Откуда берутся логи
@@ -68,6 +87,8 @@ sum(count_over_time({job=~"order-tracking.*"} |= "Broadcasted" [$__interval]))
 
 Справка Grafana: [Log queries](https://grafana.com/docs/loki/latest/query/log_queries/).
 
+![Grafana Explore: Loki — пример запроса LogQL](screenshots/loki-explore.png)
+
 ---
 
 ## 4. VictoriaLogs и язык **LogsQL**
@@ -98,6 +119,8 @@ sum(count_over_time({job=~"order-tracking.*"} |= "Broadcasted" [$__interval]))
 - Параметры: `query`, `start`, `end`, `limit`. Описание: [Querying](https://docs.victoriametrics.com/victorialogs/querying/).
 
 Спецификация языка: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
+
+![VictoriaLogs: запрос LogsQL в UI или Grafana](screenshots/victorialogs-query.png)
 
 ---
 
@@ -140,6 +163,14 @@ GET otel-logs*/_search
 
 Имена полей после экспорта в OpenSearch в режиме ECS нужно сверить с фактическим документом в индексе.
 
+![OpenSearch Dashboards: Discover — фильтр по логам](screenshots/opensearch-discover.png)
+
+---
+
+## Связь логов и трейсов
+
+Один и тот же запрос обслуживается и как цепочка спанов в Jaeger, и как строки логов в хранилищах выше. Идентификатор трассы из UI Jaeger можно искать в логах после экспорта OTLP. Подробнее: **[traces-jaeger.md](traces-jaeger.md)**.
+
 ---
 
 ## 6. Ссылки на код и конфиги
@@ -153,5 +184,6 @@ GET otel-logs*/_search
 | Плагин VictoriaLogs для Grafana | `docker-compose.yml`, `GF_INSTALL_PLUGINS` |
 | Datasource в Grafana | `deploy/observability/grafana/provisioning/datasources/datasources.yml` |
 | Три панели Logs: LogQL, LogsQL, Lucene | `deploy/observability/grafana/dashboards/order-tracking-metrics.json` |
+| Трейсы OTLP → Jaeger | `deploy/observability/otel-collector-config.yml`, секция `traces.exporters`; см. [traces-jaeger.md](traces-jaeger.md) |
 
 Скриншоты дашборда: **[grafana-dashboard.md](grafana-dashboard.md)**.

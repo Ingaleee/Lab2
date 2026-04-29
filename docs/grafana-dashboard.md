@@ -83,6 +83,8 @@ OTLP-логи в Loki с лейблом **`job`**, например `order-track
 
 ## 6. Три колонки логов: Loki, VictoriaLogs, OpenSearch
 
+![Три панели Logs: Loki (LogQL), VictoriaLogs (LogsQL), OpenSearch (Lucene)](grafana/06-three-log-columns.png)
+
 Внизу `order-tracking-metrics.json` — три панели **Logs** из одного OTLP-потока:
 
 1. **Loki**, **LogQL**: `{job=~"order-tracking.*"} |= "Broadcasted"`.
