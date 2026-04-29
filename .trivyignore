@@ -1,0 +1,3 @@
+# zlib1g CVE-2023-45853: в Debian bookworm помечено will_not_fix; базовый слой mcr.microsoft.com/dotnet/aspnet.
+# Образ обновляется с патчами Microsoft/dotnet; gate CRITICAL не блокируем на неисправляемом OS-пакете без ZIP/Zlib exploit surface для этого сервиса.
+CVE-2023-45853
