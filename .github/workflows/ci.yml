@@ -56,9 +56,11 @@ jobs:
 
       - name: Job summary
         run: |
-          echo "### Workflow lint" >> "$GITHUB_STEP_SUMMARY"
-          echo "- [\`actionlint\`](https://github.com/rhysd/actionlint): **\`.github/workflows/*.yml\`**" >> "$GITHUB_STEP_SUMMARY"
-          echo "- \`hadolint\`: **api** / **worker** / **frontend** Dockerfile и [\`.hadolint.yaml\`](https://github.com/hadolint/hadolint#configure)" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### Workflow lint"
+            echo "- [\`actionlint\`](https://github.com/rhysd/actionlint): **\`.github/workflows/*.yml\`**"
+            echo "- \`hadolint\`: **api** / **worker** / **frontend** Dockerfile и [\`.hadolint.yaml\`](https://github.com/hadolint/hadolint#configure)"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   dotnet:
     name: .NET — restore, build, test
@@ -120,11 +122,13 @@ jobs:
       - name: Job summary
         if: always()
         run: |
-          echo "### .NET" >> "$GITHUB_STEP_SUMMARY"
-          echo "- SDK: \`$(dotnet --version)\`, solution: \`OrderTracking.sln\`, configuration: Release" >> "$GITHUB_STEP_SUMMARY"
-          echo "- В CI (**\`GITHUB_ACTIONS=true\`**): предупреждения NuGet Audit **NU1902–NU1904** (уязвимости moderate и выше) трактуются как **ошибки** (\`Directory.Build.props\`)" >> "$GITHUB_STEP_SUMMARY"
-          echo "- После restore: \`dotnet format --verify-no-changes\`; затем build и \`dotnet test --collect:\"XPlat Code Coverage\"\` (unit + integration, Cobertura в артефакте)" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Отчёт TRX дублируется в **Checks** (вкладка тестов у PR/commit), если источник не fork" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### .NET"
+            echo "- SDK: \`$(dotnet --version)\`, solution: \`OrderTracking.sln\`, configuration: Release"
+            echo "- В CI (**\`GITHUB_ACTIONS=true\`**): предупреждения NuGet Audit **NU1902–NU1904** (уязвимости moderate и выше) трактуются как **ошибки** (\`Directory.Build.props\`)"
+            echo "- После restore: \`dotnet format --verify-no-changes\`; затем build и \`dotnet test --collect:\"XPlat Code Coverage\"\` (unit + integration, Cobertura в артефакте)"
+            echo "- Отчёт TRX дублируется в **Checks** (вкладка тестов у PR/commit), если источник не fork"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   frontend:
     name: Frontend — audit high, lint, build
@@ -166,8 +170,10 @@ jobs:
 
       - name: Job summary
         run: |
-          echo "### Frontend" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Node \`$(node --version)\` from \`frontend/.nvmrc\`, \`npm ci\`, затем \`npm run ci\` (= **\`npm audit --audit-level=high\`** → lint → format:check → build)" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### Frontend"
+            echo "- Node \`$(node --version)\` from \`frontend/.nvmrc\`, \`npm ci\`, затем \`npm run ci\` (= **\`npm audit --audit-level=high\`** → lint → format:check → build)"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   docs-assets:
     name: Docs — PNG, ссылки (lychee)
@@ -197,9 +203,11 @@ jobs:
 
       - name: Job summary
         run: |
-          echo "### Документация" >> "$GITHUB_STEP_SUMMARY"
-          echo "- PNG: все пути из \`scripts/verify-docs-assets.mjs\` (съёмка: \`docs/screenshots/README.md\`, \`tools/doc-screenshots\`)." >> "$GITHUB_STEP_SUMMARY"
-          echo "- Ссылки: [\`lychee\`](https://github.com/lycheeverse/lychee) по \`README.md\`, \`CONTRIBUTING.md\`, \`SECURITY.md\`, каталогу \`docs/\` (localhost исключён)." >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### Документация"
+            echo "- PNG: все пути из \`scripts/verify-docs-assets.mjs\` (съёмка: \`docs/screenshots/README.md\`, \`tools/doc-screenshots\`)."
+            echo "- Ссылки: [\`lychee\`](https://github.com/lycheeverse/lychee) по \`README.md\`, \`CONTRIBUTING.md\`, \`SECURITY.md\`, каталогу \`docs/\` (localhost исключён)."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   docker:
     name: Docker — образы api, worker, frontend
@@ -281,11 +289,13 @@ jobs:
 
       - name: Job summary
         run: |
-          echo "### Docker" >> "$GITHUB_STEP_SUMMARY"
-          echo "- \`docker compose\` — валидация \`docker-compose.yml\` и \`docker-compose.smoke.yml\`; затем \`BUILDKIT_PROGRESS=plain docker compose build --parallel --pull api worker frontend\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Smoke:** postgres + redpanda + \`order-tracking-api:local\` (\`docker-compose.smoke.yml\`); \`up -d --wait\` либо \`up -d\`; цикл \`curl\` **GET /health** (до ~3 мин); при падении — фрагмент логов **api**; затем \`down -v\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Образы приложений помечены тегами \`order-tracking-api:local\`, \`order-tracking-worker:local\`, \`order-tracking-frontend:local\` в \`docker-compose.yml\` — предсказуемые имена для сканирования" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Trivy:** три скана HIGH+CRITICAL (\`exit-code: 0\`) — таблица в логе; затем отдельный шаг **только CRITICAL** с \`exit-code: 1\` для \`order-tracking-api:local\` — job красный при неисправимых критических CVE в образе" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### Docker"
+            echo "- \`docker compose\` — валидация \`docker-compose.yml\` и \`docker-compose.smoke.yml\`; затем \`BUILDKIT_PROGRESS=plain docker compose build --parallel --pull api worker frontend\`"
+            echo "- **Smoke:** postgres + redpanda + \`order-tracking-api:local\` (\`docker-compose.smoke.yml\`); \`up -d --wait\` либо \`up -d\`; цикл \`curl\` **GET /health** (до ~3 мин); при падении — фрагмент логов **api**; затем \`down -v\`"
+            echo "- Образы приложений помечены тегами \`order-tracking-api:local\`, \`order-tracking-worker:local\`, \`order-tracking-frontend:local\` в \`docker-compose.yml\` — предсказуемые имена для сканирования"
+            echo "- **Trivy:** три скана HIGH+CRITICAL (\`exit-code: 0\`) — таблица в логе; затем отдельный шаг **только CRITICAL** с \`exit-code: 1\` для \`order-tracking-api:local\` — job красный при неисправимых критических CVE в образе"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   dependency-review:
     name: Dependency review (PR only)
@@ -305,8 +315,10 @@ jobs:
 
       - name: Job summary
         run: |
-          echo "### Dependency review" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Сравнение зависимостей base…head на PR ([документация](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-dependency-review))" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### Dependency review"
+            echo "- Сравнение зависимостей base…head на PR ([документация](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-dependency-review))"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   ci-success:
     name: CI — все проверки пройдены
@@ -321,11 +333,13 @@ jobs:
         env:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          echo "### CI pipeline" >> "$GITHUB_STEP_SUMMARY"
-          echo "Jobs **workflow-lint**, **dotnet**, **frontend**, **docs-assets**, **docker** (включая сборку образов, **smoke** **GET /health**, **Trivy**) выполнены успешно." >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Этот прогон: [\`$RUN_URL\`]($RUN_URL)" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "На **pull request** отдельно выполняется job **Dependency review** — при необходимости добавь её в branch protection." >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Для защиты ветки: **Settings → Branches → Branch protection rule** — в списке обязательных проверок можно выбрать эту job (**CI — все проверки пройдены**) или отдельные job (**Lint — YAML + Dockerfile**, **.NET**, **frontend**, **Docs — PNG, ссылки**, **Docker**). Отдельно включите workflow **CodeQL** при необходимости." >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### CI pipeline"
+            echo "Jobs **workflow-lint**, **dotnet**, **frontend**, **docs-assets**, **docker** (включая сборку образов, **smoke** **GET /health**, **Trivy**) выполнены успешно."
+            echo ""
+            echo "Этот прогон: [\`$RUN_URL\`]($RUN_URL)"
+            echo ""
+            echo "На **pull request** отдельно выполняется job **Dependency review** — при необходимости добавь её в branch protection."
+            echo ""
+            echo "Для защиты ветки: **Settings → Branches → Branch protection rule** — в списке обязательных проверок можно выбрать эту job (**CI — все проверки пройдены**) или отдельные job (**Lint — YAML + Dockerfile**, **.NET**, **frontend**, **Docs — PNG, ссылки**, **Docker**). Отдельно включите workflow **CodeQL** при необходимости."
+          } >> "$GITHUB_STEP_SUMMARY"
