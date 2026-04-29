@@ -1,0 +1,21 @@
+{
+  "name": "doc-screenshots",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PNG screenshots for docs (run locally while docker compose is up)",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "setup": "npm install && npx playwright install chromium",
+    "capture": "node capture.mjs",
+    "capture:headed": "node capture.mjs --headed",
+    "capture:strict": "node capture.mjs --strict",
+    "install-browser": "playwright install chromium",
+    "help": "node capture.mjs --help"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.1"
+  }
+}
