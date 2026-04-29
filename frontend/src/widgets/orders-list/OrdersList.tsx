@@ -1,14 +1,16 @@
-import { useMemo, useState, useRef } from "react";
 import { Package } from "lucide-react";
-import { OrderCard } from "../../entities/order/ui/OrderCard/OrderCard";
+import { useMemo, useState, useRef } from "react";
+
 import { useOrdersQuery } from "../../entities/order/model/queries";
 import type { OrdersListFilter } from "../../entities/order/model/selectors";
 import { filterAndSortOrders } from "../../entities/order/model/selectors";
-import { OrdersListToolbar } from "./OrdersListToolbar";
-import { OrdersListSkeleton } from "./OrdersListSkeleton";
-import { StatusDistribution } from "./StatusDistribution";
+import { OrderCard } from "../../entities/order/ui/OrderCard/OrderCard";
 import { useRealtimeUpdates } from "../../shared/lib/realtime/RealtimeUpdateContext";
+
 import s from "./OrdersList.module.css";
+import { OrdersListSkeleton } from "./OrdersListSkeleton";
+import { OrdersListToolbar } from "./OrdersListToolbar";
+import { StatusDistribution } from "./StatusDistribution";
 
 export function OrdersList({ onCreateOrder }: { onCreateOrder?: () => void }) {
   const q = useOrdersQuery();

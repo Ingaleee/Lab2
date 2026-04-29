@@ -1,4 +1,5 @@
 import type { OrderStatus } from "../../model/types";
+
 import s from "./OrderStatusBadge.module.css";
 
 const statusClassMap: Record<OrderStatus, string> = {

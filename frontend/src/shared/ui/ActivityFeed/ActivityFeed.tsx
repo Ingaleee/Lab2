@@ -1,5 +1,6 @@
-import type { ActivityItem } from "../../lib/activity/useActivityFeed";
 import { OrderStatusBadge } from "../../../entities/order/ui/OrderStatusBadge/OrderStatusBadge";
+import type { ActivityItem } from "../../lib/activity/useActivityFeed";
+
 import s from "./ActivityFeed.module.css";
 
 export function ActivityFeed({ activities }: { activities: ActivityItem[] }) {
@@ -24,9 +25,7 @@ export function ActivityFeed({ activities }: { activities: ActivityItem[] }) {
                   <OrderStatusBadge status={activity.newStatus} />
                 </div>
               )}
-              <div className={s.timestamp}>
-                {new Date(activity.timestamp).toLocaleString()}
-              </div>
+              <div className={s.timestamp}>{new Date(activity.timestamp).toLocaleString()}</div>
             </div>
           </div>
         ))}

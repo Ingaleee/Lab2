@@ -1,17 +1,14 @@
 import { useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+
+import { useNow } from "../../../../shared/lib/time/useNow";
 import type { Order } from "../../model/types";
 import { OrderStatusBadge } from "../OrderStatusBadge/OrderStatusBadge";
-import { OrderCardQuickActions } from "./OrderCardQuickActions";
-import s from "./OrderCard.module.css";
 
-export function OrderCard({
-  order,
-  highlight = false,
-}: {
-  order: Order;
-  highlight?: boolean;
-}) {
+import s from "./OrderCard.module.css";
+import { OrderCardQuickActions } from "./OrderCardQuickActions";
+
+export function OrderCard({ order, highlight = false }: { order: Order; highlight?: boolean }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [, setSearchParams] = useSearchParams();
 
@@ -25,9 +22,10 @@ export function OrderCard({
     }
   }, [highlight]);
 
+  const now = useNow();
   const createdDate = new Date(order.createdAt);
   const updatedDate = new Date(order.updatedAt);
-  const isRecentlyUpdated = Date.now() - updatedDate.getTime() < 5000;
+  const isRecentlyUpdated = now - updatedDate.getTime() < 5000;
 
   return (
     <div ref={cardRef} className={s.card}>
@@ -54,10 +52,7 @@ export function OrderCard({
         <div className={s.side}>
           <OrderStatusBadge status={order.status} />
           <div className={s.sideActions}>
-            <button
-              className={s.link}
-              onClick={() => setSearchParams({ orderId: order.id })}
-            >
+            <button className={s.link} onClick={() => setSearchParams({ orderId: order.id })}>
               Open
             </button>
           </div>

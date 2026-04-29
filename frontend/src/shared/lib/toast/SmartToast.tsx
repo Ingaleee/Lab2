@@ -1,19 +1,15 @@
-import toast from "react-hot-toast";
 import { Package } from "lucide-react";
+import toast from "react-hot-toast";
+
 import type { OrderStatusChangedIntegrationEventV1 } from "../../../entities/order/model/types";
+
 import s from "./SmartToast.module.css";
 
 let toastQueue: OrderStatusChangedIntegrationEventV1[] = [];
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 const TOAST_GROUP_DELAY = 1000;
 
-function ToastContent({
-  message,
-  orderId,
-}: {
-  message: string;
-  orderId?: string;
-}) {
+function ToastContent({ message, orderId }: { message: string; orderId?: string }) {
   const handleClick = () => {
     if (orderId) {
       window.location.href = `/orders?orderId=${orderId}`;
@@ -45,7 +41,7 @@ export function showSmartToast(evt: OrderStatusChangedIntegrationEventV1) {
         if (toastQueue.length === 1) {
           const single = toastQueue[0];
           const orderIdShort = single.orderId.slice(0, 8);
-          
+
           toast.custom(
             () => (
               <ToastContent

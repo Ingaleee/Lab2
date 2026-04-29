@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
-import type { Order, OrderStatus } from "../../entities/order/model/types";
+
 import { useUpdateOrderStatusMutation } from "../../entities/order/model/mutations";
-import { Select } from "../../shared/ui/Select/Select";
+import type { Order, OrderStatus } from "../../entities/order/model/types";
 import { Button } from "../../shared/ui/Button/Button";
+import { Select } from "../../shared/ui/Select/Select";
+
 import s from "./UpdateOrderStatus.module.css";
 
 const statuses: OrderStatus[] = ["New", "InProgress", "Delivered", "Cancelled"];

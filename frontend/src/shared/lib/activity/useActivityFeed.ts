@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+
 import type {
   Order,
   OrderStatus,
@@ -55,7 +56,7 @@ function inferStatusHistory(
   for (let i = 1; i <= currentIndex; i++) {
     const prevStatus = STATUS_FLOW[i - 1];
     const newStatus = STATUS_FLOW[i];
-    
+
     activities.push({
       id: `inferred-${orderId}-${prevStatus}-${newStatus}`,
       type: "status_changed",
@@ -77,9 +78,11 @@ export function useActivityFeed(orderId: string, order: Order | undefined) {
     if (!order) return;
 
     const inferred = inferStatusHistory(order.status, order.createdAt, order.updatedAt, order.id);
+    // Синхронизация выведенной ленты со снимком заказа + сброс дедупликации SignalR при смене данных.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- слияние начального inferred с последующими событиями из SignalR
     setActivities(inferred);
     receivedEventsRef.current.clear();
-  }, [order?.id, order?.status, order?.createdAt, order?.updatedAt]);
+  }, [order]);
 
   useEffect(() => {
     const unsubscribe = onOrderStatusChanged((evt: OrderStatusChangedIntegrationEventV1) => {
@@ -142,5 +145,7 @@ export function useActivityFeed(orderId: string, order: Order | undefined) {
     return unsubscribe;
   }, [orderId]);
 
-  return activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  return activities.sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
 }

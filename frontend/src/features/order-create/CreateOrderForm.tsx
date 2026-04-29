@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+
 import { useCreateOrderMutation } from "../../entities/order/model/mutations";
-import { Input } from "../../shared/ui/Input/Input";
 import { Button } from "../../shared/ui/Button/Button";
+import { Input } from "../../shared/ui/Input/Input";
+
 import s from "./CreateOrderForm.module.css";
 
 export function CreateOrderForm({ onSuccess }: { onSuccess?: () => void }) {
@@ -10,19 +12,20 @@ export function CreateOrderForm({ onSuccess }: { onSuccess?: () => void }) {
 
   const createMutation = useCreateOrderMutation();
 
-  useEffect(() => {
-    if (createMutation.isSuccess) {
-      setOrderNumber("");
-      setDescription("");
-      onSuccess?.();
-    }
-  }, [createMutation.isSuccess, onSuccess]);
-
   const canSubmit = orderNumber.trim().length > 0 && description.trim().length > 0;
 
   const handleSubmit = () => {
     if (canSubmit) {
-      createMutation.mutate({ orderNumber, description });
+      createMutation.mutate(
+        { orderNumber, description },
+        {
+          onSuccess: () => {
+            setOrderNumber("");
+            setDescription("");
+            onSuccess?.();
+          },
+        }
+      );
     }
   };
 

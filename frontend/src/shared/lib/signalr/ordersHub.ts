@@ -1,6 +1,8 @@
 import * as signalR from "@microsoft/signalr";
-import { env } from "../../config/env";
+
 import type { OrderStatusChangedIntegrationEventV1 } from "../../../entities/order/model/types";
+import { env } from "../../config/env";
+
 import { HubMethods, HubEvents } from "./constants";
 
 type ConnectionStatus = "disconnected" | "connecting" | "connected" | "reconnecting";
@@ -30,11 +32,11 @@ export function onOrderStatusChanged(handler: (evt: OrderStatusChangedIntegratio
 
 export async function startOrdersHub() {
   const conn = getOrdersHubConnection();
-  
+
   if (conn.state === signalR.HubConnectionState.Connected) {
     return;
   }
-  
+
   if (
     conn.state === signalR.HubConnectionState.Connecting ||
     conn.state === signalR.HubConnectionState.Reconnecting
@@ -44,7 +46,7 @@ export async function startOrdersHub() {
 
   try {
     await conn.start();
-    console.log("SignalR connected successfully");
+    console.warn("SignalR connected successfully");
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     console.error("SignalR start failed:", error);
@@ -100,6 +102,5 @@ export function subscribeConnectionStatus(cb: (s: ConnectionStatus) => void) {
   });
   conn.onclose(() => cb("disconnected"));
 
-  return () => {
-  };
+  return () => {};
 }

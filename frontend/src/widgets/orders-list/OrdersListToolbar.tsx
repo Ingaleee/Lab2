@@ -1,7 +1,9 @@
-import { useRef, useEffect } from "react";
 import { X } from "lucide-react";
-import type { OrderStatus } from "../../entities/order/model/types";
+import { useRef, useEffect } from "react";
+
 import type { OrdersListFilter, OrdersSort } from "../../entities/order/model/selectors";
+import type { OrderStatus } from "../../entities/order/model/types";
+
 import s from "./OrdersListToolbar.module.css";
 
 const statuses: (OrderStatus | "All")[] = ["All", "New", "InProgress", "Delivered", "Cancelled"];
@@ -17,7 +19,8 @@ export function OrdersListToolbar({
   searchInputRef?: React.MutableRefObject<HTMLInputElement | null>;
 }) {
   const internalRef = useRef<HTMLInputElement>(null);
-  const inputRef = (searchInputRef || internalRef) as React.MutableRefObject<HTMLInputElement | null>;
+  const inputRef = (searchInputRef ||
+    internalRef) as React.MutableRefObject<HTMLInputElement | null>;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -103,7 +106,7 @@ export function OrdersListToolbar({
         <div className={s.activeFilters}>
           {value.search.trim().length > 0 && (
             <div className={s.chip}>
-              Search: "{value.search}"
+              Search: {`"${value.search}"`}
               <button
                 className={s.chipButton}
                 onClick={() => clearFilter("search")}

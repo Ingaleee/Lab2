@@ -1,19 +1,25 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { CreateOrderForm } from "../../features/order-create/CreateOrderForm";
-import { OrdersList } from "../../widgets/orders-list/OrdersList";
-import { OrderDetailsPanel } from "../../widgets/order-details/OrderDetailsPanel";
-import { SidePanel } from "../../shared/ui/SidePanel/SidePanel";
-import { CommandPalette } from "../../shared/ui/CommandPalette/CommandPalette";
-import { useKeyboardShortcuts } from "../../shared/lib/keyboard/useKeyboardShortcuts";
-import { useCommandPalette } from "../../shared/lib/commandPalette/CommandPaletteContext";
+
 import { useOrdersQuery } from "../../entities/order/model/queries";
+import { CreateOrderForm } from "../../features/order-create/CreateOrderForm";
+import { useCommandPalette } from "../../shared/lib/commandPalette/CommandPaletteContext";
+import { useKeyboardShortcuts } from "../../shared/lib/keyboard/useKeyboardShortcuts";
 import { Button } from "../../shared/ui/Button/Button";
+import { CommandPalette } from "../../shared/ui/CommandPalette/CommandPalette";
+import { SidePanel } from "../../shared/ui/SidePanel/SidePanel";
+import { OrderDetailsPanel } from "../../widgets/order-details/OrderDetailsPanel";
+import { OrdersList } from "../../widgets/orders-list/OrdersList";
+
 import s from "./OrdersPageWithDetails.module.css";
 
 export function OrdersPageWithDetails() {
   const [isCreatePanelOpen, setIsCreatePanelOpen] = useState(false);
-  const { isOpen: isCommandPaletteOpen, open: openCommandPalette, close: closeCommandPalette } = useCommandPalette();
+  const {
+    isOpen: isCommandPaletteOpen,
+    open: openCommandPalette,
+    close: closeCommandPalette,
+  } = useCommandPalette();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedOrderId = searchParams.get("orderId");
   const ordersQuery = useOrdersQuery();
@@ -42,7 +48,9 @@ export function OrdersPageWithDetails() {
           <div className={s.pageTitle}>
             <h1 className={s.title}>Orders</h1>
             {ordersCount > 0 && (
-              <span className={s.count}>{ordersCount} {ordersCount === 1 ? "order" : "orders"}</span>
+              <span className={s.count}>
+                {ordersCount} {ordersCount === 1 ? "order" : "orders"}
+              </span>
             )}
           </div>
           <Button onClick={() => setIsCreatePanelOpen(true)} className={s.createButton}>
@@ -58,10 +66,7 @@ export function OrdersPageWithDetails() {
 
         {selectedOrderId && (
           <div className={s.detailsSection}>
-            <OrderDetailsPanel
-              orderId={selectedOrderId}
-              onClose={() => setSearchParams({})}
-            />
+            <OrderDetailsPanel orderId={selectedOrderId} onClose={() => setSearchParams({})} />
           </div>
         )}
       </div>

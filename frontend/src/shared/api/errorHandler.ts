@@ -1,4 +1,5 @@
 import axios from "axios";
+
 import type { ProblemDetails } from "./problemDetails";
 
 export function parseApiError(error: unknown): string {

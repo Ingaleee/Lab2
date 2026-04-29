@@ -1,21 +1,19 @@
 import { X, Circle } from "lucide-react";
+
 import { useOrderByIdQuery } from "../../entities/order/model/queries";
-import { UpdateOrderStatus } from "../../features/order-status-update/UpdateOrderStatus";
 import { OrderStatusBadge } from "../../entities/order/ui/OrderStatusBadge/OrderStatusBadge";
-import { StatusStepper } from "../../shared/ui/StatusStepper/StatusStepper";
-import { ActivityFeed } from "../../shared/ui/ActivityFeed/ActivityFeed";
+import { UpdateOrderStatus } from "../../features/order-status-update/UpdateOrderStatus";
 import { useActivityFeed } from "../../shared/lib/activity/useActivityFeed";
+import { useNow } from "../../shared/lib/time/useNow";
+import { ActivityFeed } from "../../shared/ui/ActivityFeed/ActivityFeed";
 import { Card } from "../../shared/ui/Card/Card";
+import { StatusStepper } from "../../shared/ui/StatusStepper/StatusStepper";
+
 import s from "./OrderDetailsPanel.module.css";
 
-export function OrderDetailsPanel({
-  orderId,
-  onClose,
-}: {
-  orderId: string;
-  onClose: () => void;
-}) {
+export function OrderDetailsPanel({ orderId, onClose }: { orderId: string; onClose: () => void }) {
   const q = useOrderByIdQuery(orderId);
+  const now = useNow();
   const activities = useActivityFeed(orderId, q.data);
 
   if (q.isLoading) {
@@ -37,7 +35,7 @@ export function OrderDetailsPanel({
   const order = q.data;
   const createdDate = new Date(order.createdAt);
   const updatedDate = new Date(order.updatedAt);
-  const isRecentlyUpdated = Date.now() - updatedDate.getTime() < 5000;
+  const isRecentlyUpdated = now - updatedDate.getTime() < 5000;
 
   return (
     <div className={s.panel}>

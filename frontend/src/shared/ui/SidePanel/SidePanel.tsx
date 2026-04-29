@@ -1,6 +1,7 @@
-import { useEffect } from "react";
 import { X } from "lucide-react";
+import { useEffect } from "react";
 import type { ReactNode } from "react";
+
 import s from "./SidePanel.module.css";
 
 export function SidePanel({

@@ -1,21 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import { queryClient } from "../../shared/lib/reactQuery/queryClient";
+
 import { orderKeys } from "../../entities/order/model/queryKeys";
 import type { Order, OrderStatusChangedIntegrationEventV1 } from "../../entities/order/model/types";
+import { queryClient } from "../../shared/lib/reactQuery/queryClient";
+import { RealtimeContext, type ConnectionStatus } from "../../shared/lib/realtime/RealtimeContext";
+import {
+  RealtimeUpdateProvider,
+  useRealtimeUpdates,
+} from "../../shared/lib/realtime/RealtimeUpdateContext";
+import { LruSet } from "../../shared/lib/signalr/eventDedup";
 import {
   joinOrdersList,
   onOrderStatusChanged,
   startOrdersHub,
   subscribeConnectionStatus,
 } from "../../shared/lib/signalr/ordersHub";
-import { LruSet } from "../../shared/lib/signalr/eventDedup";
-import { RealtimeContext, type ConnectionStatus } from "../../shared/lib/realtime/RealtimeContext";
-import {
-  RealtimeUpdateProvider,
-  useRealtimeUpdates,
-} from "../../shared/lib/realtime/RealtimeUpdateContext";
 import { showSmartToast } from "../../shared/lib/toast/SmartToast";
 
 const dedup = new LruSet(500);
@@ -102,7 +103,7 @@ function RealtimeConnection({ children }: { children: ReactNode }) {
         setStatus("disconnected");
         const error = e instanceof Error ? e.message : String(e);
         console.warn("SignalR connection failed:", error);
-        
+
         if (wasConnectedOnceRef.current) {
           toast.error("Realtime connection lost (will retry)");
         }
@@ -114,11 +115,7 @@ function RealtimeConnection({ children }: { children: ReactNode }) {
     };
   }, [markHighlighted]);
 
-  return (
-    <RealtimeContext.Provider value={status}>
-      {children}
-    </RealtimeContext.Provider>
-  );
+  return <RealtimeContext.Provider value={status}>{children}</RealtimeContext.Provider>;
 }
 
 export function RealtimeProvider({ children }: { children: ReactNode }) {

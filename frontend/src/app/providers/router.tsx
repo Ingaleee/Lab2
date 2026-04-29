@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
-import { OrdersPageWithDetails } from "../../pages/orders/OrdersPageWithDetails";
+
 import { OrderDetailsPage } from "../../pages/order-details/OrderDetailsPage";
+import { OrdersPageWithDetails } from "../../pages/orders/OrdersPageWithDetails";
 import { AppHeader } from "../../shared/ui/AppHeader/AppHeader";
 
 function Layout() {

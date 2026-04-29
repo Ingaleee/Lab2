@@ -1,17 +1,21 @@
-import { Link, useParams } from "react-router-dom";
 import { Circle } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+
 import { useOrderByIdQuery } from "../../entities/order/model/queries";
-import { UpdateOrderStatus } from "../../features/order-status-update/UpdateOrderStatus";
 import { OrderStatusBadge } from "../../entities/order/ui/OrderStatusBadge/OrderStatusBadge";
-import { StatusStepper } from "../../shared/ui/StatusStepper/StatusStepper";
-import { ActivityFeed } from "../../shared/ui/ActivityFeed/ActivityFeed";
+import { UpdateOrderStatus } from "../../features/order-status-update/UpdateOrderStatus";
 import { useActivityFeed } from "../../shared/lib/activity/useActivityFeed";
+import { useNow } from "../../shared/lib/time/useNow";
+import { ActivityFeed } from "../../shared/ui/ActivityFeed/ActivityFeed";
 import { Card } from "../../shared/ui/Card/Card";
+import { StatusStepper } from "../../shared/ui/StatusStepper/StatusStepper";
+
 import s from "./OrderDetailsPage.module.css";
 
 export function OrderDetailsPage() {
   const { id = "" } = useParams();
   const q = useOrderByIdQuery(id);
+  const now = useNow();
   const activities = useActivityFeed(id, q.data);
 
   if (q.isLoading) return <div>Loading order...</div>;
@@ -21,13 +25,15 @@ export function OrderDetailsPage() {
   const order = q.data;
   const createdDate = new Date(order.createdAt);
   const updatedDate = new Date(order.updatedAt);
-  const isRecentlyUpdated = Date.now() - updatedDate.getTime() < 5000;
+  const isRecentlyUpdated = now - updatedDate.getTime() < 5000;
 
   return (
     <div className={s.page}>
       <div className={s.header}>
         <div>
-          <Link to="/orders" className={s.backLink}>← Back to Orders</Link>
+          <Link to="/orders" className={s.backLink}>
+            ← Back to Orders
+          </Link>
           <h1 className={s.title}>{order.orderNumber}</h1>
         </div>
         <OrderStatusBadge status={order.status} />

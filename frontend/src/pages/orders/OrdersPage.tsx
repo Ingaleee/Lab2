@@ -1,16 +1,22 @@
 import { useState } from "react";
+
 import { CreateOrderForm } from "../../features/order-create/CreateOrderForm";
-import { OrdersList } from "../../widgets/orders-list/OrdersList";
-import { SidePanel } from "../../shared/ui/SidePanel/SidePanel";
+import { useCommandPalette } from "../../shared/lib/commandPalette/CommandPaletteContext";
+import { useKeyboardShortcuts } from "../../shared/lib/keyboard/useKeyboardShortcuts";
 import { Button } from "../../shared/ui/Button/Button";
 import { CommandPalette } from "../../shared/ui/CommandPalette/CommandPalette";
-import { useKeyboardShortcuts } from "../../shared/lib/keyboard/useKeyboardShortcuts";
-import { useCommandPalette } from "../../shared/lib/commandPalette/CommandPaletteContext";
+import { SidePanel } from "../../shared/ui/SidePanel/SidePanel";
+import { OrdersList } from "../../widgets/orders-list/OrdersList";
+
 import s from "./OrdersPage.module.css";
 
 export function OrdersPage() {
   const [isCreatePanelOpen, setIsCreatePanelOpen] = useState(false);
-  const { isOpen: isCommandPaletteOpen, open: openCommandPalette, close: closeCommandPalette } = useCommandPalette();
+  const {
+    isOpen: isCommandPaletteOpen,
+    open: openCommandPalette,
+    close: closeCommandPalette,
+  } = useCommandPalette();
 
   useKeyboardShortcuts([
     {

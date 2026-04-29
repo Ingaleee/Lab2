@@ -1,4 +1,5 @@
 import type { Order, OrderStatus } from "../../entities/order/model/types";
+
 import s from "./StatusDistribution.module.css";
 
 const statusLabels: Record<OrderStatus, string> = {

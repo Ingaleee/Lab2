@@ -1,6 +1,8 @@
 import { useState } from "react";
-import type { Order, OrderStatus } from "../../model/types";
+
 import { useUpdateOrderStatusMutation } from "../../model/mutations";
+import type { Order, OrderStatus } from "../../model/types";
+
 import s from "./OrderCardQuickActions.module.css";
 
 const statusTransitions: Record<OrderStatus, OrderStatus[]> = {

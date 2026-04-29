@@ -1,5 +1,10 @@
 .skeleton {
-  background: linear-gradient(90deg, var(--neutral-light) 25%, var(--border) 50%, var(--neutral-light) 75%);
+  background: linear-gradient(
+    90deg,
+    var(--neutral-light) 25%,
+    var(--border) 50%,
+    var(--neutral-light) 75%
+  );
   background-size: 200% 100%;
   animation: loading 1.5s ease-in-out infinite;
   border-radius: var(--radius);

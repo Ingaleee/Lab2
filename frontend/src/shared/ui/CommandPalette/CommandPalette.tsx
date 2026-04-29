@@ -1,10 +1,12 @@
-import { useEffect, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import { Plus, Package, Search, ArrowDown, ArrowUp } from "lucide-react";
-import type { OrderStatus } from "../../../entities/order/model/types";
-import { useOrdersQuery } from "../../../entities/order/model/queries";
-import s from "./CommandPalette.module.css";
+import { useEffect, useState, useMemo } from "react";
 import type { ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
+
+import { useOrdersQuery } from "../../../entities/order/model/queries";
+import type { OrderStatus } from "../../../entities/order/model/types";
+
+import s from "./CommandPalette.module.css";
 
 type Command = {
   id: string;
@@ -107,9 +109,7 @@ export function CommandPalette({
 
     const q = query.toLowerCase();
     return commands.filter(
-      (cmd) =>
-        cmd.label.toLowerCase().includes(q) ||
-        cmd.keywords.some((kw) => kw.includes(q))
+      (cmd) => cmd.label.toLowerCase().includes(q) || cmd.keywords.some((kw) => kw.includes(q))
     );
   }, [commands, query]);
 
@@ -125,10 +125,13 @@ export function CommandPalette({
   }, [filteredCommands]);
 
   useEffect(() => {
-    if (isOpen) {
+    if (!isOpen) return;
+
+    const id = requestAnimationFrame(() => {
       setQuery("");
       setSelectedIndex(0);
-    }
+    });
+    return () => cancelAnimationFrame(id);
   }, [isOpen]);
 
   useEffect(() => {

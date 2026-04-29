@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import type { ReactNode } from "react";
 import { Github } from "lucide-react";
-import { ConnectionBadge } from "../ConnectionBadge/ConnectionBadge";
+import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
+import { Link, useLocation } from "react-router-dom";
+
 import { useRealtimeStatus } from "../../lib/realtime/RealtimeContext";
+import { ConnectionBadge } from "../ConnectionBadge/ConnectionBadge";
+
 import s from "./AppHeader.module.css";
 
 export function AppHeader() {
@@ -47,15 +49,7 @@ export function AppHeader() {
   );
 }
 
-function NavLink({
-  to,
-  active,
-  children,
-}: {
-  to: string;
-  active: boolean;
-  children: ReactNode;
-}) {
+function NavLink({ to, active, children }: { to: string; active: boolean; children: ReactNode }) {
   return (
     <Link to={to} className={`${s.navLink} ${active ? s.active : ""}`}>
       {children}

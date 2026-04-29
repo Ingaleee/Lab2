@@ -1,5 +1,7 @@
 import { Check, X } from "lucide-react";
+
 import type { OrderStatus } from "../../../entities/order/model/types";
+
 import s from "./StatusStepper.module.css";
 
 const statusOrder: OrderStatus[] = ["New", "InProgress", "Delivered"];
@@ -17,10 +19,14 @@ export function StatusStepper({ currentStatus }: { currentStatus: OrderStatus })
 
         return (
           <div key={status} className={s.step}>
-            <div className={`${s.stepCircle} ${isActive ? s.active : ""} ${isCurrent ? s.current : ""}`}>
+            <div
+              className={`${s.stepCircle} ${isActive ? s.active : ""} ${isCurrent ? s.current : ""}`}
+            >
               {isActive ? <Check size={14} /> : index + 1}
             </div>
-            <div className={`${s.stepLabel} ${isActive ? s.active : ""} ${isCurrent ? s.current : ""}`}>
+            <div
+              className={`${s.stepLabel} ${isActive ? s.active : ""} ${isCurrent ? s.current : ""}`}
+            >
               {status}
             </div>
             {index < statusOrder.length - 1 && (

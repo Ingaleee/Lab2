@@ -1,4 +1,5 @@
 import { Skeleton } from "../../shared/ui/Skeleton/Skeleton";
+
 import s from "./OrdersListSkeleton.module.css";
 
 export function OrdersListSkeleton() {

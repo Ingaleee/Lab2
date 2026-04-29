@@ -1,6 +1,14 @@
 import s from "./Skeleton.module.css";
 
-export function Skeleton({ width, height, className }: { width?: string; height?: string; className?: string }) {
+export function Skeleton({
+  width,
+  height,
+  className,
+}: {
+  width?: string;
+  height?: string;
+  className?: string;
+}) {
   return (
     <div
       className={`${s.skeleton} ${className || ""}`}

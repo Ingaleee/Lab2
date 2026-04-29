@@ -1,5 +1,5 @@
-import { http } from "../../../shared/api/http";
 import { ApiEndpoints } from "../../../shared/api/endpoints";
+import { http } from "../../../shared/api/http";
 import type { Order } from "../model/types";
 
 export type CreateOrderRequest = {
