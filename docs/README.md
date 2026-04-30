@@ -1,36 +1,60 @@
-# Документация и иллюстрации
+# Документация проекта
 
-Краткий указатель разделов — в корневом [**README.md**](../README.md#документация). Ниже — детали и ссылки на картинки.
+Этот каталог содержит дополнительные материалы к основному [README](../README.md): CI/CD, тестирование, наблюдаемость, трассировки и правила обновления скриншотов.
 
-Файлы ниже также ссылаются из корневого README.
+## Навигация
 
-## OpenAPI и Jaeger
+| Документ | Описание |
+|---|---|
+| [ci-cd.md](ci-cd.md) | устройство GitHub Actions, CodeQL, проверок качества и security-gate |
+| [testing.md](testing.md) | unit- и integration-тесты, локальные команды запуска |
+| [logs-query-languages.md](logs-query-languages.md) | как читать логи в Loki, VictoriaLogs и OpenSearch |
+| [traces-jaeger.md](traces-jaeger.md) | работа с Jaeger, поиск трасс и связь с логами |
+| [grafana-dashboard.md](grafana-dashboard.md) | панели Grafana и смысл основных метрик |
+| [screenshots/README.md](screenshots/README.md) | как переснять PNG для README и документации |
 
-- [openapi-docs.png](openapi-docs.png) — Swagger UI по `openapi.yaml`
-- [jaeger-ui.png](jaeger-ui.png) — Jaeger, сервис `order-tracking-api`
+## Иллюстрации
 
-## Скриншоты UI
+Скриншоты, которые используются в README, лежат в [screenshots](screenshots). Они показывают:
 
-Полное руководство (Playwright, переменные, типичные ошибки): **[screenshots/README.md](screenshots/README.md)**.
+- состояние Prometheus targets;
+- метрики .NET runtime, HTTP client/server, Kestrel и scrape;
+- логи в Grafana Loki, VictoriaLogs и VMUI;
+- трассировки API и worker в Jaeger.
 
-Каталог [screenshots/](screenshots/) — фронтенд, Prometheus, Loki / VictoriaLogs / OpenSearch, Jaeger. Скрипт: [`tools/doc-screenshots/capture.mjs`](../tools/doc-screenshots/capture.mjs), Windows: [`tools/doc-screenshots/capture.cmd`](../tools/doc-screenshots/capture.cmd). Первый ручной запуск в **`tools/doc-screenshots`**: **`npm run setup`**, затем **`npm run capture`**; строгий режим: **`npm run capture:strict`**. Подробности — [screenshots/README.md](screenshots/README.md).
+Отдельные изображения для общей документации лежат прямо в `docs/`:
 
-## Логи
+| Файл | Содержание |
+|---|---|
+| [openapi-docs.png](openapi-docs.png) | Swagger/OpenAPI UI |
+| [jaeger-ui.png](jaeger-ui.png) | общий вид Jaeger UI |
 
-[logs-query-languages.md](logs-query-languages.md) — OTLP → collector → Loki, OpenSearch, VictoriaLogs; LogQL, LogsQL, Lucene, DQL. Иллюстрации: `screenshots/logs-grafana-loki-broadcasted.png`, `logs-grafana-victorialogs-outbox.png`, `logs-victorialogs-vmui-worker.png`, также `loki-explore.png`, `victorialogs-query.png`, `opensearch-discover.png`. Краткий блок с теми же скринами — в корневом [README.md](../README.md#наблюдаемость).
+## Обновление скриншотов
 
-## Трейсы
+1. Поднять стек:
 
-[traces-jaeger.md](traces-jaeger.md) — OTLP, Jaeger UI, теги поиска, связь с логами. Иллюстрации: `screenshots/traces-jaeger-search-api-scatter.png`, `traces-jaeger-search-api-list.png`, `traces-jaeger-search-worker.png`, также `jaeger-search.png`, `jaeger-trace-detail.png`. Краткий блок — в корневом [README.md](../README.md#наблюдаемость).
+```bash
+docker compose up -d
+```
 
-## Grafana
+2. Запустить съемку:
 
-[grafana-dashboard.md](grafana-dashboard.md) и каталог [grafana/](grafana/) — дашборд и скриншоты (в т.ч. `06-three-log-columns.png` — три колонки логов).
+```bash
+cd tools/doc-screenshots
+npm run setup
+npm run capture
+```
 
-## CI/CD
+На Windows можно использовать wrapper:
 
-[ci-cd.md](ci-cd.md) — GitHub Actions (**CI**, **CodeQL**), Dependabot, что проверяется на сервере и что остаётся сделать вручную перед сдачей (**раздел «Перед сдачей»**).
+```bat
+tools\doc-screenshots\capture.cmd
+```
 
-[**scripts/README.md**](../scripts/README.md) — локальные **`ci-local`** с опциями **`MATCH_CI_NUGET`**, **`VERIFY_DOCS_ASSETS`**, **`RUN_SMOKE`**, чтобы повторить часть проверок без push.
+3. Проверить наличие ожидаемых файлов:
 
-Скриншоты вкладки Actions в отчёте не обязательны; для демонстрации инструментов полезны скрины продуктовых UI (Grafana, Jaeger, логи).
+```bash
+node scripts/verify-docs-assets.mjs
+```
+
+Имена PNG зафиксированы в markdown. Если картинку нужно заменить вручную, сохраняйте новый файл под тем же именем.
