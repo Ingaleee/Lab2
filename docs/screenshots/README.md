@@ -12,6 +12,7 @@
 | `metrics-grafana-explore-dotnet-deep.png` | GC, JIT, CPU, память, thread pool |
 | `metrics-grafana-explore-http-outbound.png` | исходящие HTTP-запросы и HttpClient |
 | `metrics-grafana-explore-http-server-business.png` | входящий HTTP, Kestrel и доменные счетчики |
+| `metrics-grafana-explore-business-counters.png` | продуктовые счетчики заказов, Kafka и outbox |
 | `metrics-grafana-explore-scrape-target-health.png` | scrape-метрики, `target_info`, `up` |
 | `logs-grafana-loki-broadcasted.png` | поиск `Broadcasted` в Loki через Grafana |
 | `logs-grafana-victorialogs-outbox.png` | outbox/EF Core логи в VictoriaLogs datasource |

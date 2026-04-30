@@ -11,6 +11,7 @@ export const REQUIRED_RELATIVE = [
   'docs/screenshots/opensearch-discover.png',
   'docs/screenshots/victorialogs-query.png',
   'docs/screenshots/loki-explore.png',
+  'docs/screenshots/metrics-grafana-explore-business-counters.png',
   'docs/grafana/01-dashboard-overview.png',
   'docs/grafana/02-transitions-intensity.png',
   'docs/grafana/03-status-rate-pipeline.png',
