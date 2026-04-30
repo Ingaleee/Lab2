@@ -17,11 +17,11 @@
 
 ## Логи
 
-[logs-query-languages.md](logs-query-languages.md) — OTLP → collector → Loki, OpenSearch, VictoriaLogs; LogQL, LogsQL, Lucene, DQL. Иллюстрации: `screenshots/loki-explore.png`, `victorialogs-query.png`, `opensearch-discover.png`.
+[logs-query-languages.md](logs-query-languages.md) — OTLP → collector → Loki, OpenSearch, VictoriaLogs; LogQL, LogsQL, Lucene, DQL. Иллюстрации: `screenshots/logs-grafana-loki-broadcasted.png`, `logs-grafana-victorialogs-outbox.png`, `logs-victorialogs-vmui-worker.png`, также `loki-explore.png`, `victorialogs-query.png`, `opensearch-discover.png`. Краткий блок с теми же скринами — в корневом [README.md](../README.md#наблюдаемость).
 
 ## Трейсы
 
-[traces-jaeger.md](traces-jaeger.md) — OTLP, Jaeger UI, теги поиска, связь с логами. Иллюстрации: `screenshots/jaeger-search.png`, `jaeger-trace-detail.png`.
+[traces-jaeger.md](traces-jaeger.md) — OTLP, Jaeger UI, теги поиска, связь с логами. Иллюстрации: `screenshots/traces-jaeger-search-api-scatter.png`, `traces-jaeger-search-api-list.png`, `traces-jaeger-search-worker.png`, также `jaeger-search.png`, `jaeger-trace-detail.png`. Краткий блок — в корневом [README.md](../README.md#наблюдаемость).
 
 ## Grafana
 

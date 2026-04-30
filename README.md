@@ -276,6 +276,98 @@ OpenTelemetry: трейсы и метрики.
 
 **Дашборд:** [**docs/grafana-dashboard.md**](docs/grafana-dashboard.md).
 
+### Иллюстрации: метрики, сбор и связка с логами
+
+Ниже — скриншоты из поднятого стека (`docker compose up -d`): Prometheus и Grafana (**Explore → Metrics**, источник Prometheus). Файлы лежат в [`docs/screenshots/`](docs/screenshots/).
+
+#### 1. Prometheus: цели сбора (`/targets`)
+
+Два job’а в статусе **UP**: API отдаёт метрики на `http://api:8080/metrics`, worker — на `http://worker:9464/metrics`. Это базовая проверка, что экспортёры доступны и scrape проходит без ошибок.
+
+![Prometheus Targets: order-tracking-api и order-tracking-worker UP](docs/screenshots/metrics-prometheus-targets.png)
+
+#### 2–3. Grafana Explore → Metrics: входящий HTTP, DNS, сборки, исключения, GC (обзор)
+
+Встроенный режим **Metrics** в Grafana (данные с Prometheus) без ручного PromQL: маршрутизация ASP.NET Core (`aspnetcore_routing_match_attempts_total`), DNS-клиент, счётчик сборок (`dotnet_assembly_count`), отсутствие исключений (`dotnet_exceptions_total` на нуле), активность GC и аллокаций на куче. Два кадра — соседние страницы/масштаб того же типа дашборда.
+
+![Grafana Metrics: routing, DNS, .NET startup и GC — обзор](docs/screenshots/metrics-grafana-explore-runtime-overview.png)
+
+![Grafana Metrics: routing, DNS, .NET — альтернативный кадр](docs/screenshots/metrics-grafana-explore-runtime-overview-alt.png)
+
+#### 4. Среда выполнения .NET подробно
+
+Панели GC (размер кучи после сборки, паузы JIT, объём скомпилированного IL, методы), блокировки монитора, CPU процесса, working set, очередь thread pool. По графикам видно старт приложения (всплеск JIT) и затем устойчивое состояние под нагрузкой DemoTraffic.
+
+![Grafana Metrics: GC, JIT, CPU, память, thread pool](docs/screenshots/metrics-grafana-explore-dotnet-deep.png)
+
+#### 5. Исходящий HTTP (`HttpClient`)
+
+Метрики клиента: открытые соединения, длительность запросов, время в очереди, распределения по bucket’ам. Для этого API характерен цикл вызовов к самому себе (DemoTraffic через `127.0.0.1:8080`), поэтому видны стабильные исходящие запросы и один долгоживущий коннект.
+
+![Grafana Metrics: HttpClient и thread pool (исходящие запросы)](docs/screenshots/metrics-grafana-explore-http-outbound.png)
+
+#### 6. Входящий HTTP (Kestrel) и продуктовые счётчики
+
+Серверная часть: активные запросы, длительность обработки, соединения Kestrel, очередь соединений. Внизу — кастомные счётчики домена (`order_tracking_catalog_orders_list_requests_total`, `order_tracking_catalog_order_detail_views_total`), которые считаются в коде и попадают в Prometheus через OTEL meter.
+
+![Grafana Metrics: HTTP server, Kestrel, каталог заказов](docs/screenshots/metrics-grafana-explore-http-server-business.png)
+
+#### 7. Метаданные scrape и здоровье цели в Grafana
+
+Показатели самого процесса scraping’а: `scrape_duration_seconds`, число сэмплов, серии, а также **otel_scope_info**, **target_info** и **`up` = 1** для выбранного таргета. Подтверждает, что Grafana читает те же данные, что видит Prometheus, и что цель считается доступной.
+
+![Grafana Metrics: scrape, OTEL scope, target_info, up](docs/screenshots/metrics-grafana-explore-scrape-target-health.png)
+
+### Иллюстрации: логи (Loki, VictoriaLogs, VMUI)
+
+Цепочка **OTLP → collector → Loki / VictoriaLogs** и типичные запросы разобраны в [**docs/logs-query-languages.md**](docs/logs-query-languages.md). Ниже — три скрина из поднятого стека; файлы в [`docs/screenshots/`](docs/screenshots/).
+
+#### 1. Grafana → Loki: доставка статуса в UI (Broadcasted)
+
+**Explore** или панель **Logs**, datasource **Loki**, режим **Code**, запрос:
+
+```logql
+{job=~"order-tracking.*"} |= "Broadcasted"
+```
+
+На скрине: гистограмма **Logs volume** и строки **Information** из **`OrderStatusKafkaConsumerHostedService`**: сообщение **Broadcasted status update**, переходы статусов заказа (**Old** / **New**), в теле OTLP — **`traceid`** и **`spanid`** (удобно искать ту же трассу в Jaeger).
+
+![Grafana Loki: Broadcasted и trace context](docs/screenshots/logs-grafana-loki-broadcasted.png)
+
+#### 2. Grafana → VictoriaLogs: outbox и EF в потоке логов
+
+Тот же стек, datasource **VictoriaLogs**, широкий селектор по сервисам, например `{service.name=~"order-tracking.*"}`. В потоке видны структурированные записи **Entity Framework**: выполнение **`DbCommand`** с запросом к **`outbox_messages`** (`FOR UPDATE SKIP LOCKED`) — это фоновый **worker**, который по паттерну **transactional outbox** забирает сообщения перед публикацией в Kafka. Дополнительно могут проходить строки про scrape **`GET …/metrics`** — это нормальная фоновая активность наблюдаемости.
+
+![Grafana VictoriaLogs: outbox, DbCommand, метрики worker](docs/screenshots/logs-grafana-victorialogs-outbox.png)
+
+#### 3. VictoriaLogs VMUI (`:9428`): worker и outbox «как в логах целиком»
+
+Нативный UI по адресу **http://localhost:9428**: запрос **`{service.name=~"order-tracking.*"}`** за последние минуты. На скрине явно выделен поток **`order-tracking-worker`**: периодический **`SELECT * FROM outbox_messages … FOR UPDATE SKIP LOCKED`**, ответы **`HTTP/1.1 GET http://worker:9464/metrics`** со статусом **200** — видно и бизнес-цикл outbox, и успешный scrape Prometheus с worker.
+
+![VictoriaLogs VMUI: worker, outbox, /metrics](docs/screenshots/logs-victorialogs-vmui-worker.png)
+
+### Иллюстрации: трейсы (Jaeger)
+
+Подробный разбор UI, тегов и типичных имён операций — [**docs/traces-jaeger.md**](docs/traces-jaeger.md). Ниже три кадра **экрана поиска** (**http://localhost:16686**): два для **`order-tracking-api`** (диаграмма + список), один для **`order-tracking-worker`**. Имеет смысл приложить к отчёту вместе с [**деталью трассы**](docs/traces-jaeger.md) (`jaeger-trace-detail.png`), когда в дереве видны нужные спаны.
+
+#### 1. API: диаграмма и список трасс
+
+Сервис **`order-tracking-api`**, lookback **Last Hour**. Видны быстрые **`HEAD /health`**, **`GET`** и серии **`order_tracking`** — смешение HTTP и коротких трасс, связанных с инфраструктурой запросов к БД.
+
+![Jaeger search: order-tracking-api, scatter и список](docs/screenshots/traces-jaeger-search-api-scatter.png)
+
+#### 2. API: фрагмент списка (недавние трассы)
+
+Тот же сервис: удобно показать в отчёте «живой» поток операций и пометку **1 Span** в строке — напоминание открыть трассу целиком или использовать **Tags** для поиска по Kafka / доменным полям.
+
+![Jaeger search: order-tracking-api, список](docs/screenshots/traces-jaeger-search-api-list.png)
+
+#### 3. Worker: фоновые трассы
+
+Сервис **`order-tracking-worker`**: регулярные короткие трассы с операцией вроде **`order_tracking`** соответствуют циклу работы воркера с базой и **outbox**; детали спанов **`Outbox.Dispatch`** / **`Kafka.Produce`** — после перехода внутрь выбранной трассы.
+
+![Jaeger search: order-tracking-worker](docs/screenshots/traces-jaeger-search-worker.png)
+
 ### Спаны в коде
 
 - HTTP (ASP.NET Core), EF Core  

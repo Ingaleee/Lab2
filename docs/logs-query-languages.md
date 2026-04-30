@@ -41,13 +41,13 @@ flowchart LR
 logs:
   receivers: [otlp]
   processors: [batch]
-  exporters: [loki, elasticsearch, otlphttp/victorialogs]
+  exporters: [loki, opensearch, otlphttp/victorialogs]
 ```
 
 | Экспортёр | Назначение |
 |-----------|------------|
 | `loki` | Grafana Loki, **LogQL** |
-| `elasticsearch` | OpenSearch, индекс `otel-logs`, ECS mapping; **Lucene** и **DQL** в Dashboards |
+| `opensearch` | OpenSearch, индекс `otel-logs`, ECS mapping; **Lucene** и **DQL** в Dashboards |
 | `otlphttp/victorialogs` | VictoriaLogs, endpoint OTLP `/insert/opentelemetry/v1/logs`, **LogsQL** |
 
 Три бэкенда получают одни и те же записи логов; имена полей после записи могут немного различаться.
@@ -87,6 +87,12 @@ sum(count_over_time({job=~"order-tracking.*"} |= "Broadcasted" [$__interval]))
 
 Справка Grafana: [Log queries](https://grafana.com/docs/loki/latest/query/log_queries/).
 
+**Пример из Grafana (Explore / Logs):** запрос `{job=~"order-tracking.*"} |= "Broadcasted"`, гистограмма **Logs volume** и развёрнутые OTLP-строки: **`OrderStatusKafkaConsumerHostedService`**, текст **Broadcasted status update**, поля **`traceid`** / **`spanid`**, смена статусов заказа.
+
+![Grafana Loki: Broadcasted, consumer, trace id](screenshots/logs-grafana-loki-broadcasted.png)
+
+Дополнительный пример Explore (автосъёмка в CI): 
+
 ![Grafana Explore: Loki — пример запроса LogQL](screenshots/loki-explore.png)
 
 ---
@@ -121,6 +127,16 @@ sum(count_over_time({job=~"order-tracking.*"} |= "Broadcasted" [$__interval]))
 Спецификация языка: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
 
 ![VictoriaLogs: запрос LogsQL в UI или Grafana](screenshots/victorialogs-query.png)
+
+**Пример из Grafana (VictoriaLogs datasource):** широкий селектор `{service.name=~"order-tracking.*"}` — в ленте видны **`DbCommand`** Entity Framework с **`SELECT * FROM outbox_messages … FOR UPDATE SKIP LOCKED`** (worker, transactional outbox), а также служебные строки про scrape **`/metrics`**.
+
+![Grafana VictoriaLogs: outbox, EF, worker](screenshots/logs-grafana-victorialogs-outbox.png)
+
+### Веб-интерфейс VictoriaLogs (VMUI)
+
+Помимо Grafana, у сервиса **`victorialogs`** есть свой UI: **`http://localhost:9428`**. Запрос **`{service.name=~"order-tracking.*"}`** за короткий интервал показывает поток **`order-tracking-worker`**: периодический опрос **outbox** и успешные **`GET http://worker:9464/metrics`** (ответ **200**) — то есть одновременно видно бизнес-цикл и доступность экспортёра метрик.
+
+![VictoriaLogs VMUI: worker, outbox, scrape metrics](screenshots/logs-victorialogs-vmui-worker.png)
 
 ---
 

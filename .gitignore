@@ -81,3 +81,7 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+
+## Tests / coverage (локальные отчёты; в CI артефакт не коммитится)
+TestResults/
+TestResults-*/

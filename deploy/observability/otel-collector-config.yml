@@ -27,9 +27,14 @@ exporters:
     tls:
       insecure: true
 
-  elasticsearch:
-    endpoints:
-      - http://opensearch:9200
+  # OpenSearch: отдельный экспортёр (elasticsearch-экспортёр с OS 2.x часто не создаёт индексы).
+  opensearch:
+    http:
+      endpoint: http://opensearch:9200
+      tls:
+        insecure: true
+    dataset: otel
+    namespace: logs
     logs_index: otel-logs
     mapping:
       mode: ecs
@@ -52,4 +57,4 @@ service:
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [loki, elasticsearch, otlphttp/victorialogs]
+      exporters: [loki, opensearch, otlphttp/victorialogs]
