@@ -278,7 +278,7 @@ OpenTelemetry: трейсы и метрики.
 
 ### Иллюстрации: метрики, сбор и связка с логами
 
-Ниже — скриншоты из поднятого стека (`docker compose up -d`): Prometheus и Grafana (**Explore → Metrics**, источник Prometheus). Файлы лежат в [`docs/screenshots/`](docs/screenshots/).
+Ниже — твои скриншоты из стека (`docker compose up -d`). Чтобы они отображались на GitHub, файлы **`docs/screenshots/*.png` должны быть в репозитории**. Картинки из чата Cursor на диск не коммитятся автоматически: скопируй их одной командой — **`pwsh -File scripts/import-chat-screenshots.ps1`** (ищет типичные папки Cursor и переименовывает в нужные имена), затем **`git add docs/screenshots/*.png`** и push. Либо подложи PNG вручную с теми же именами. Заглушки для CI: **`node scripts/ensure-docs-placeholder-pngs.mjs`**.
 
 #### 1. Prometheus: цели сбора (`/targets`)
 
@@ -304,7 +304,7 @@ OpenTelemetry: трейсы и метрики.
 
 Метрики клиента: открытые соединения, длительность запросов, время в очереди, распределения по bucket’ам. Для этого API характерен цикл вызовов к самому себе (DemoTraffic через `127.0.0.1:8080`), поэтому видны стабильные исходящие запросы и один долгоживущий коннект.
 
-![Grafana Metrics: HttpClient и thread pool (исходящие запросы)](docs/screenshots/metrics-grafana-explore-http-outbound.png)
+![Grafana Metrics: HttpClient и thread pool](docs/screenshots/metrics-grafana-explore-http-outbound.png)
 
 #### 6. Входящий HTTP (Kestrel) и продуктовые счётчики
 
@@ -320,53 +320,47 @@ OpenTelemetry: трейсы и метрики.
 
 ### Иллюстрации: логи (Loki, VictoriaLogs, VMUI)
 
-Цепочка **OTLP → collector → Loki / VictoriaLogs** и типичные запросы разобраны в [**docs/logs-query-languages.md**](docs/logs-query-languages.md). Ниже — три скрина из поднятого стека; файлы в [`docs/screenshots/`](docs/screenshots/).
+Цепочка **OTLP → collector → Loki / VictoriaLogs** — [**docs/logs-query-languages.md**](docs/logs-query-languages.md). Файлы PNG — в git (**`scripts/import-chat-screenshots.ps1`** или вручную).
 
-#### 1. Grafana → Loki: доставка статуса в UI (Broadcasted)
+#### 1. Grafana → Loki (Broadcasted)
 
-**Explore** или панель **Logs**, datasource **Loki**, режим **Code**, запрос:
+LogQL: `{job=~"order-tracking.*"} |= "Broadcasted"` — консьюмер Kafka, **traceid** / **spanid** в OTLP.
 
-```logql
-{job=~"order-tracking.*"} |= "Broadcasted"
-```
+![Loki: Broadcasted и trace context](docs/screenshots/logs-grafana-loki-broadcasted.png)
 
-На скрине: гистограмма **Logs volume** и строки **Information** из **`OrderStatusKafkaConsumerHostedService`**: сообщение **Broadcasted status update**, переходы статусов заказа (**Old** / **New**), в теле OTLP — **`traceid`** и **`spanid`** (удобно искать ту же трассу в Jaeger).
+#### 2. Grafana → VictoriaLogs (outbox / EF)
 
-![Grafana Loki: Broadcasted и trace context](docs/screenshots/logs-grafana-loki-broadcasted.png)
+Поток **`order-tracking-worker`**: **`DbCommand`**, **`outbox_messages`**, **`FOR UPDATE SKIP LOCKED`**.
 
-#### 2. Grafana → VictoriaLogs: outbox и EF в потоке логов
+![VictoriaLogs в Grafana: outbox и EF](docs/screenshots/logs-grafana-victorialogs-outbox.png)
 
-Тот же стек, datasource **VictoriaLogs**, широкий селектор по сервисам, например `{service.name=~"order-tracking.*"}`. В потоке видны структурированные записи **Entity Framework**: выполнение **`DbCommand`** с запросом к **`outbox_messages`** (`FOR UPDATE SKIP LOCKED`) — это фоновый **worker**, который по паттерну **transactional outbox** забирает сообщения перед публикацией в Kafka. Дополнительно могут проходить строки про scrape **`GET …/metrics`** — это нормальная фоновая активность наблюдаемости.
+#### 3. VictoriaLogs VMUI (`http://localhost:9428`)
 
-![Grafana VictoriaLogs: outbox, DbCommand, метрики worker](docs/screenshots/logs-grafana-victorialogs-outbox.png)
+Тот же поток worker и успешный **`GET …/metrics`**.
 
-#### 3. VictoriaLogs VMUI (`:9428`): worker и outbox «как в логах целиком»
-
-Нативный UI по адресу **http://localhost:9428**: запрос **`{service.name=~"order-tracking.*"}`** за последние минуты. На скрине явно выделен поток **`order-tracking-worker`**: периодический **`SELECT * FROM outbox_messages … FOR UPDATE SKIP LOCKED`**, ответы **`HTTP/1.1 GET http://worker:9464/metrics`** со статусом **200** — видно и бизнес-цикл outbox, и успешный scrape Prometheus с worker.
-
-![VictoriaLogs VMUI: worker, outbox, /metrics](docs/screenshots/logs-victorialogs-vmui-worker.png)
+![VictoriaLogs VMUI: worker и scrape метрик](docs/screenshots/logs-victorialogs-vmui-worker.png)
 
 ### Иллюстрации: трейсы (Jaeger)
 
-Подробный разбор UI, тегов и типичных имён операций — [**docs/traces-jaeger.md**](docs/traces-jaeger.md). Ниже три кадра **экрана поиска** (**http://localhost:16686**): два для **`order-tracking-api`** (диаграмма + список), один для **`order-tracking-worker`**. Имеет смысл приложить к отчёту вместе с [**деталью трассы**](docs/traces-jaeger.md) (`jaeger-trace-detail.png`), когда в дереве видны нужные спаны.
+Подробный разбор — [**docs/traces-jaeger.md**](docs/traces-jaeger.md). PNG — в git (**`scripts/import-chat-screenshots.ps1`**).
 
-#### 1. API: диаграмма и список трасс
+#### 1. API: scatter и список
 
-Сервис **`order-tracking-api`**, lookback **Last Hour**. Видны быстрые **`HEAD /health`**, **`GET`** и серии **`order_tracking`** — смешение HTTP и коротких трасс, связанных с инфраструктурой запросов к БД.
+Сервис **`order-tracking-api`**, lookback **Last Hour**: **`HEAD /health`**, **`GET`**, серии **`order_tracking`**.
 
-![Jaeger search: order-tracking-api, scatter и список](docs/screenshots/traces-jaeger-search-api-scatter.png)
+![Jaeger: поиск order-tracking-api — scatter и список](docs/screenshots/traces-jaeger-search-api-scatter.png)
 
-#### 2. API: фрагмент списка (недавние трассы)
+#### 2. API: недавние трассы
 
-Тот же сервис: удобно показать в отчёте «живой» поток операций и пометку **1 Span** в строке — напоминание открыть трассу целиком или использовать **Tags** для поиска по Kafka / доменным полям.
+Поток операций, часто **«1 Span»** в строке — открывай трассу целиком или **Tags** (`messaging.system=kafka`).
 
-![Jaeger search: order-tracking-api, список](docs/screenshots/traces-jaeger-search-api-list.png)
+![Jaeger: поиск order-tracking-api — список](docs/screenshots/traces-jaeger-search-api-list.png)
 
-#### 3. Worker: фоновые трассы
+#### 3. Worker
 
-Сервис **`order-tracking-worker`**: регулярные короткие трассы с операцией вроде **`order_tracking`** соответствуют циклу работы воркера с базой и **outbox**; детали спанов **`Outbox.Dispatch`** / **`Kafka.Produce`** — после перехода внутрь выбранной трассы.
+**`order-tracking-worker`**, операции **`order_tracking`** — фон БД и **outbox**; **`Outbox.Dispatch`** / **`Kafka.Produce`** — внутри выбранной трассы.
 
-![Jaeger search: order-tracking-worker](docs/screenshots/traces-jaeger-search-worker.png)
+![Jaeger: поиск order-tracking-worker](docs/screenshots/traces-jaeger-search-worker.png)
 
 ### Спаны в коде
 

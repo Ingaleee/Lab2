@@ -6,6 +6,7 @@
 |--------|------------|
 | [`ci-local.sh`](ci-local.sh) | Bash (Linux, macOS, Git Bash на Windows): основная цепочка как в CI без GitHub-only шагов |
 | [`ci-local.ps1`](ci-local.ps1) | PowerShell на Windows |
+| [`import-chat-screenshots.ps1`](import-chat-screenshots.ps1) | Копирует PNG из кэша Cursor (картинки из чата) в **`docs/screenshots/`** под именами для README → затем **`git add`** и push |
 
 По умолчанию **нет**: actionlint/hadolint, TRX→Checks, Trivy, dependency-review, CodeQL, lychee — они выполняются только в **GitHub Actions**.
 
