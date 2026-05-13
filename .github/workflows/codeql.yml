@@ -28,14 +28,14 @@ jobs:
       security-events: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: github/codeql-action/init@v3
+      - uses: github/codeql-action/init@v4
         with:
           languages: csharp
           queries: security-and-quality
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
 
@@ -46,7 +46,7 @@ jobs:
           dotnet restore OrderTracking.sln
           dotnet build OrderTracking.sln -c Release --no-restore /p:SkipNSwag=true
 
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@v4
 
       - name: Job summary
         if: always()
